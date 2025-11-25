@@ -10,111 +10,146 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     * { font-family: 'Sarabun', sans-serif !important; }
-    body { background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); height: 100vh; overflow-x: hidden; }
-    .main-app { background:#f8f9fa; height: 100vh; overflow-y: auto; }
-    .login-container { background: rgba(255,255,255,.95); backdrop-filter: blur(10px); border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,.25); }
-    .header-section { background: linear-gradient(135deg,#2563eb,#3b82f6); color: #fff; padding: 1rem 0; box-shadow: 0 2px 10px rgba(0,0,0,.1); }
-    .nav-tabs .nav-link.active { background:#2563eb; color:#fff; border:none; }
-    .card{ border:none; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.1); margin-bottom:1rem }
-    .card-header{ background: linear-gradient(135deg,#2563eb,#3b82f6); color:#fff; border-radius:12px 12px 0 0 !important; font-weight:600; font-size:18px }
-    .loader{ border:4px solid #f3f3f3; border-top:4px solid #2563eb; border-radius:50%; width:40px; height:40px; animation: spin 1s linear infinite }
-    @keyframes spin{ 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
+    body { background: linear-gradient(135deg,#f5f7fa 0%,#c3cfe2 100%); height: 100vh; overflow-x: hidden; }
+    .main-app { background:#ffffff; height: 100vh; overflow-y: auto; }
     
-    /* Calendar Styling */
-    .calendar-day { min-height: 100px; border: 1px solid #dee2e6; padding: 4px; background: #fff; font-size: 12px; }
+    /* Login */
+    .login-container { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+    
+    /* Header & Nav */
+    .header-section { background: #2c3e50; color: #fff; padding: 1rem 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .nav-tabs .nav-link { color: #555; font-weight: 500; border: none; padding: 12px 20px; transition: all 0.2s; }
+    .nav-tabs .nav-link:hover { background-color: #f8f9fa; color: #000; }
+    .nav-tabs .nav-link.active { background-color: #3498db; color: #fff; border-radius: 4px 4px 0 0; }
+    
+    /* Cards & Forms */
+    .card { border: 1px solid #e9ecef; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 1.5rem; }
+    .card-header { background: #ecf0f1; color: #2c3e50; border-bottom: 1px solid #dee2e6; font-weight: 600; border-radius: 12px 12px 0 0 !important; }
+    .form-label { font-weight: 500; color: #34495e; }
+    .form-control, .form-select { border-radius: 8px; border: 1px solid #ced4da; padding: 10px 15px; }
+    .form-control:focus, .form-select:focus { border-color: #3498db; box-shadow: 0 0 0 0.2rem rgba(52,152,219,0.25); }
+
+    /* Buttons */
+    .btn { border-radius: 8px; font-weight: 600; padding: 8px 20px; }
+    .btn-success { background-color: #27ae60; border: none; }
+    .btn-success:hover { background-color: #219150; }
+    .btn-primary { background-color: #3498db; border: none; }
+    .btn-primary:hover { background-color: #2980b9; }
+
+    /* Calendar */
+    .calendar-day { min-height: 100px; border: 1px solid #eee; padding: 5px; background: #fff; }
+    .calendar-day:hover { background-color: #fafafa; }
     .calendar-event { 
-        background: #e3f2fd; color: #0d6efd; border-left: 3px solid #0d6efd;
-        border-radius: 2px; padding: 2px 4px; margin-bottom: 2px; 
+        background: #e1f5fe; color: #0277bd; border-left: 3px solid #039be5;
+        border-radius: 4px; padding: 4px; margin-bottom: 4px; 
         font-size: 11px; cursor: pointer; display: block;
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
-    .calendar-event:hover { background: #cfe2ff; }
-
-    /* Print Logic */
+    
+    /* Loader */
+    .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    /* Print */
     @media print { 
-      .no-print{ display:none !important } 
-      .print-only{ display:block !important } 
-      body{ background:#fff !important; overflow: visible; height: auto; }
+      .no-print { display: none !important; } 
+      .print-only { display: block !important; } 
+      body { background: #fff !important; overflow: visible; height: auto; }
       @page { margin: 0; size: auto; }
     }
   </style>
 </head>
 <body>
   <div id="loginScreen" class="d-flex align-items-center justify-content-center" style="height:100vh;">
-    <div class="login-container" style="width:100%; max-width:400px; padding:2rem;">
+    <div class="login-container" style="width:100%; max-width:400px; padding:2.5rem;">
       <div class="text-center mb-4">
-        <div class="mx-auto mb-3" style="width:80px; height:80px; background: linear-gradient(135deg,#198754,#20c997); border-radius:50%; display:flex; align-items:center; justify-content:center;">
+        <div class="mx-auto mb-3" style="width:70px; height:70px; background: #27ae60; border-radius:50%; display:flex; align-items:center; justify-content:center;">
           <i class="bi bi-capsule text-white" style="font-size:2rem;"></i>
         </div>
-        <h1 class="h3 fw-bold text-dark mb-2">ระบบเตรียมยาผลิตเฉพาะราย</h1>
+        <h1 class="h4 fw-bold text-dark">ระบบเตรียมยาผลิตเฉพาะราย</h1>
       </div>
       <form id="loginForm">
         <div class="mb-3"><label class="form-label">ชื่อผู้ใช้</label><input type="text" id="username" class="form-control" placeholder="admin"></div>
-        <div class="mb-3"><label class="form-label">รหัสผ่าน</label><input type="password" id="password" class="form-control" placeholder="••••••"></div>
+        <div class="mb-4"><label class="form-label">รหัสผ่าน</label><input type="password" id="password" class="form-control" placeholder="••••••"></div>
         <button type="submit" id="loginButton" class="btn btn-success w-100 py-2">เข้าสู่ระบบ</button>
       </form>
     </div>
   </div>
 
   <div id="mainApp" class="main-app d-none">
-    <div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center d-none" style="background:rgba(0,0,0,.5); z-index:9999;">
-      <div class="bg-white p-4 rounded shadow-lg d-flex align-items-center"><div class="loader me-3"></div><span class="fw-semibold">กำลังประมวลผล...</span></div>
+    <div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center d-none" style="background:rgba(255,255,255,0.8); z-index:9999;">
+      <div class="bg-white p-4 rounded shadow-lg d-flex align-items-center border"><div class="loader me-3"></div><span class="fw-semibold text-dark">กำลังบันทึกข้อมูล...</span></div>
     </div>
 
     <header class="header-section no-print">
-      <div class="container-fluid">
+      <div class="container-fluid px-4">
         <div class="d-flex justify-content-between align-items-center">
-          <div><h1 class="h4 fw-bold mb-1">โปรแกรมเตรียมยาผลิตเฉพาะราย</h1><p class="mb-0 opacity-75">โรงพยาบาลนพรัตนราชธานี</p></div>
-          <div><button id="logoutBtn" class="btn btn-outline-danger btn-sm text-white border-white">ออกจากระบบ</button></div>
+          <div><h1 class="h5 fw-bold mb-0">โปรแกรมเตรียมยาผลิตเฉพาะราย</h1><small class="opacity-75">โรงพยาบาลนพรัตนราชธานี</small></div>
+          <div><button id="logoutBtn" class="btn btn-outline-light btn-sm">ออกจากระบบ</button></div>
         </div>
       </div>
     </header>
 
-    <nav class="no-print container-fluid mt-2">
+    <nav class="no-print container-fluid px-4 mt-3">
       <ul class="nav nav-tabs" id="mainTabs">
-        <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#prescriptionTab">ใบสั่งยา</a></li>
-        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#medicineTab">ข้อมูลยา</a></li>
-        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#productionTab">ส่งเตรียมยาผลิต</a></li>
-        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#reportTab">ปฏิทินนัดรับยา</a></li>
-        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#editTab">แก้ไขนัด</a></li>
-        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#printTab">พิมพ์ใบนัด</a></li>
+        <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#prescriptionTab"><i class="bi bi-file-earmark-medical me-2"></i>ใบสั่งยา</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#medicineTab"><i class="bi bi-capsule me-2"></i>ข้อมูลยา</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#productionTab"><i class="bi bi-box-seam me-2"></i>ส่งผลิต</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#reportTab"><i class="bi bi-calendar3 me-2"></i>ปฏิทิน</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#editTab"><i class="bi bi-pencil-square me-2"></i>แก้ไขนัด</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#printTab"><i class="bi bi-printer me-2"></i>พิมพ์ใบนัด</a></li>
       </ul>
     </nav>
 
-    <div class="container-fluid py-3 content-container">
+    <div class="container-fluid px-4 py-4 content-container">
       <div class="tab-content">
-        
         <div class="tab-pane fade show active" id="prescriptionTab">
           <div class="card">
-            <div class="card-header">สร้างใบสั่งยาเตรียมผลิต</div>
+            <div class="card-header">สร้างใบสั่งยาและนัดหมาย</div>
             <div class="card-body">
               <form id="prescriptionForm">
                 <div class="row g-3 mb-4">
-                  <div class="col-md-3"><label class="form-label fw-bold">VN</label><input type="text" id="vnDisplay" class="form-control" placeholder="ออกเลขอัตโนมัติเมื่อบันทึก" readonly style="background:#e9ecef; font-weight:bold; color:#2563eb;"></div>
-                  <div class="col-md-9 d-flex align-items-end"><small class="text-muted">*ระบบจะรัน VN ต่อจากเลขล่าสุดในฐานข้อมูลให้ทันทีที่กดปุ่มบันทึก</small></div>
+                  <div class="col-md-3">
+                    <label class="form-label fw-bold text-primary">VN (Auto)</label>
+                    <input type="text" id="vnDisplay" class="form-control bg-light fw-bold text-primary" placeholder="-- ออกเลขอัตโนมัติ --" readonly>
+                  </div>
+                  <div class="col-md-9 d-flex align-items-center">
+                    <div class="text-muted small"><i class="bi bi-info-circle me-1"></i>เลข VN จะถูกสร้างขึ้นอัตโนมัติทันทีที่ท่านกดบันทึกข้อมูล</div>
+                  </div>
                 </div>
                 <div class="row g-3">
-                  <div class="col-md-6"><label class="form-label">HN</label><input type="text" id="hn" class="form-control" required></div>
-                  <div class="col-md-6"><label class="form-label">ชื่อยา</label><select id="medicineSelect" class="form-select" required><option value="">เลือกยา</option></select></div>
-                  <div class="col-md-6"><label class="form-label">ชื่อ</label><input type="text" id="firstName" class="form-control" required></div>
-                  <div class="col-md-6"><label class="form-label">นามสกุล</label><input type="text" id="lastName" class="form-control" required></div>
-                  <div class="col-md-6"><label class="form-label">เบอร์โทรศัพท์</label><input type="tel" id="phone" class="form-control"></div>
-                  <div class="col-md-6"><label class="form-label">ปริมาตรรับประทาน (ซีซี/วัน)</label><input type="number" id="dailyDose" class="form-control" step="0.1" required></div>
-                  <div class="col-md-6"><label class="form-label">วันรับยาครั้งแรก</label><input type="date" id="firstPickupDate" class="form-control" required></div>
-                  <div class="col-md-6"><label class="form-label">วันนัดพบแพทย์</label><input type="date" id="doctorAppointment" class="form-control" required></div>
+                  <div class="col-md-3"><label class="form-label">HN</label><input type="text" id="hn" class="form-control" required></div>
+                  <div class="col-md-3"><label class="form-label">คำนำหน้า/ชื่อ</label><input type="text" id="firstName" class="form-control" required></div>
+                  <div class="col-md-3"><label class="form-label">นามสกุล</label><input type="text" id="lastName" class="form-control" required></div>
+                  <div class="col-md-3"><label class="form-label">เบอร์โทรศัพท์</label><input type="tel" id="phone" class="form-control"></div>
+                  
+                  <div class="col-md-6"><label class="form-label">เลือกรายการยา</label><select id="medicineSelect" class="form-select" required><option value="">-- กรุณาเลือกยา --</option></select></div>
+                  <div class="col-md-3"><label class="form-label">ปริมาตรทาน (cc/วัน)</label><input type="number" id="dailyDose" class="form-control" step="0.1" required></div>
+                  
+                  <div class="col-md-3"></div> <div class="col-md-3"><label class="form-label">วันรับยาครั้งแรก</label><input type="date" id="firstPickupDate" class="form-control" required></div>
+                  <div class="col-md-3"><label class="form-label">วันนัดพบแพทย์</label><input type="date" id="doctorAppointment" class="form-control" required></div>
                 </div>
-                <div class="text-center mt-4"><button type="submit" class="btn btn-success px-5">บันทึกและสร้างใบนัด</button></div>
+                <div class="d-flex justify-content-center mt-5">
+                    <button type="submit" class="btn btn-success px-5 py-2 shadow-sm"><i class="bi bi-save me-2"></i>บันทึกและสร้างใบนัด</button>
+                </div>
               </form>
-              <div id="patientPrescriptionCard" class="d-none mt-4">
-                <div class="alert alert-info border-info">
-                   <div class="d-flex justify-content-between align-items-center">
-                      <div><h5 id="patientName" class="fw-bold mb-0"></h5><small id="patientMeta"></small></div>
-                      <button id="printPrescriptionBtn" class="btn btn-primary"><i class="bi bi-printer me-2"></i>พิมพ์ใบนัด</button>
+              
+              <div id="patientPrescriptionCard" class="d-none mt-5">
+                <div class="card border-primary shadow-sm">
+                   <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                      <span><i class="bi bi-check-circle me-2"></i>บันทึกสำเร็จ: <span id="patientName" class="fw-bold"></span></span>
+                      <small id="patientMeta" class="fw-normal"></small>
                    </div>
-                   <table class="table mt-3 bg-white rounded">
-                     <thead><tr><th>รอบที่</th><th>วันที่รับ</th><th>จำนวนขวด</th><th>วันหมดอายุ</th></tr></thead>
-                     <tbody id="prescriptionTableBody"></tbody>
-                   </table>
+                   <div class="card-body">
+                      <div class="d-flex justify-content-end mb-3">
+                          <button id="printPrescriptionBtn" class="btn btn-outline-primary btn-sm"><i class="bi bi-printer me-2"></i>พิมพ์ใบนัดนี้</button>
+                      </div>
+                      <table class="table table-striped table-hover">
+                         <thead class="table-light"><tr><th>รอบที่</th><th>วันที่รับยา</th><th class="text-center">จำนวน (ขวด)</th><th>วันหมดอายุยา</th></tr></thead>
+                         <tbody id="prescriptionTableBody"></tbody>
+                      </table>
+                   </div>
                 </div>
               </div>
             </div>
@@ -123,45 +158,43 @@
 
         <div class="tab-pane fade" id="medicineTab">
           <div class="card mb-3">
-            <div class="card-header">จัดการข้อมูลยา</div>
+            <div class="card-header">จัดการฐานข้อมูลยา</div>
             <div class="card-body">
-              <form id="medicineForm" class="mb-4">
+              <form id="medicineForm" class="mb-4 p-3 bg-light rounded border">
                 <div class="row g-3">
-                  <div class="col-md-6"><label class="form-label">ชื่อสามัญยา</label><input type="text" id="medicineName" class="form-control" required></div>
-                  <div class="col-md-3"><label class="form-label">ปริมาตร/ขวด (cc)</label><input type="number" id="bottleVolume" class="form-control" required></div>
-                  <div class="col-md-3"><label class="form-label">อายุยา (วัน)</label><input type="number" id="shelfLife" class="form-control" required></div>
-                  <div class="col-md-3"><label class="form-label text-primary fw-bold">จำนวนเม็ดที่ใช้/ขวด</label><input type="number" id="tabletsPerBottle" class="form-control" placeholder="0" required></div>
-                  <div class="col-md-12"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="isRTM"><label class="form-check-label" for="isRTM">เป็นยา RTM</label></div></div>
-                  <div class="col-md-3 rtm-only d-none"><label class="form-label">RTM Shelf Life</label><input type="number" id="rtmShelfLife" class="form-control"></div>
-                  <div class="col-md-3 rtm-only d-none"><label class="form-label">Mixed Shelf Life</label><input type="number" id="mixedShelfLife" class="form-control"></div>
+                  <div class="col-md-5"><label class="form-label">ชื่อสามัญยา</label><input type="text" id="medicineName" class="form-control" required></div>
+                  <div class="col-md-2"><label class="form-label">ขนาดบรรจุ (cc)</label><input type="number" id="bottleVolume" class="form-control" required></div>
+                  <div class="col-md-2"><label class="form-label">อายุยา (วัน)</label><input type="number" id="shelfLife" class="form-control" required></div>
+                  <div class="col-md-3"><label class="form-label">จำนวนเม็ดที่ใช้/ขวด</label><input type="number" id="tabletsPerBottle" class="form-control" placeholder="0" required></div>
+                  <div class="col-md-12 pt-2"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="isRTM"><label class="form-check-label fw-bold" for="isRTM">ยานี้เป็นประเภท RTM (Ready to Mix)</label></div></div>
+                  <div class="col-md-3 rtm-only d-none"><label class="form-label text-danger">อายุผงยา (RTM Life)</label><input type="number" id="rtmShelfLife" class="form-control"></div>
+                  <div class="col-md-3 rtm-only d-none"><label class="form-label text-danger">อายุหลังผสม (Mixed Life)</label><input type="number" id="mixedShelfLife" class="form-control"></div>
+                  <div class="col-md-6 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-circle me-2"></i>บันทึกข้อมูลยา</button></div>
                 </div>
-                <div class="mt-3"><button type="submit" class="btn btn-primary">บันทึกข้อมูลยา</button></div>
               </form>
-              <div class="table-responsive">
-                <table class="table table-bordered">
-                   <thead class="table-light"><tr><th>ชื่อยา</th><th>ขนาด(cc)</th><th>ใช้เม็ด(tab)</th><th>ประเภท</th><th>ลบ</th></tr></thead>
-                   <tbody id="medicineListBody"></tbody>
-                </table>
-              </div>
+              <table class="table table-hover border">
+                 <thead class="table-light"><tr><th>ชื่อยา</th><th>ขนาด(cc)</th><th>ใช้เม็ด(tab)</th><th>ประเภท</th><th>จัดการ</th></tr></thead>
+                 <tbody id="medicineListBody"></tbody>
+              </table>
             </div>
           </div>
         </div>
 
         <div class="tab-pane fade" id="productionTab">
           <div class="card">
-             <div class="card-header">เตรียมยาผลิต (ฝ่ายผลิต)</div>
+             <div class="card-header">รายการส่งผลิตประจำวัน</div>
              <div class="card-body">
                 <div class="row g-3 align-items-end mb-4">
-                   <div class="col-md-4"><label class="form-label">เลือกวันที่ผลิต</label><input type="date" id="productionDate" class="form-control"></div>
-                   <div class="col-md-4"><button id="btnSearchProduction" class="btn btn-primary w-100">ดูรายการผลิต</button></div>
+                   <div class="col-md-3"><label class="form-label">เลือกวันที่ผลิต</label><input type="date" id="productionDate" class="form-control"></div>
+                   <div class="col-md-2"><button id="btnSearchProduction" class="btn btn-primary w-100"><i class="bi bi-search me-2"></i>ค้นหา</button></div>
                 </div>
                 <div id="productionResult" class="d-none">
                    <div class="d-flex justify-content-between mb-2">
-                      <h5 class="fw-bold text-success">รายการที่ต้องเตรียม</h5>
-                      <button id="btnPrintProduction" class="btn btn-warning"><i class="bi bi-printer me-2"></i>พิมพ์ใบเบิกยา (A5)</button>
+                      <h5 class="fw-bold text-success"><i class="bi bi-list-check me-2"></i>รายการที่ต้องเตรียม</h5>
+                      <button id="btnPrintProduction" class="btn btn-warning btn-sm"><i class="bi bi-printer me-2"></i>พิมพ์ใบเบิกยา (A5)</button>
                    </div>
                    <table class="table table-bordered table-striped" id="productionTable">
-                      <thead><tr><th>ลำดับ</th><th>รายการยาเตรียม</th><th>จำนวนขวด</th><th>จำนวนเม็ดยาที่ต้องใช้</th><th>หมายเหตุ</th></tr></thead>
+                      <thead><tr><th>ลำดับ</th><th>รายการยาเตรียม</th><th class="text-center">ขวด</th><th class="text-center">เม็ดที่ใช้</th><th>หมายเหตุ</th></tr></thead>
                       <tbody></tbody>
                    </table>
                 </div>
@@ -171,23 +204,23 @@
 
         <div class="tab-pane fade" id="reportTab">
            <div class="card mb-3"><div class="card-body">
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                 <button id="prevMonth" class="btn btn-secondary btn-sm">เดือนก่อน</button>
-                 <h5 id="currentMonth" class="mb-0 fw-bold"></h5>
-                 <button id="nextMonth" class="btn btn-secondary btn-sm">เดือนถัดไป</button>
+              <div class="d-flex justify-content-between align-items-center mb-4">
+                 <button id="prevMonth" class="btn btn-outline-secondary btn-sm"><i class="bi bi-chevron-left"></i> เดือนก่อน</button>
+                 <h5 id="currentMonth" class="mb-0 fw-bold text-primary"></h5>
+                 <button id="nextMonth" class="btn btn-outline-secondary btn-sm">เดือนถัดไป <i class="bi bi-chevron-right"></i></button>
               </div>
-              <div class="row g-1 text-center fw-bold mb-2">
+              <div class="row g-0 text-center fw-bold mb-2 text-muted small">
                  <div class="col">อา</div><div class="col">จ</div><div class="col">อ</div><div class="col">พ</div><div class="col">พฤ</div><div class="col">ศ</div><div class="col">ส</div>
               </div>
-              <div id="calendarGrid" class="row g-1"></div>
+              <div id="calendarGrid" class="row g-0 border-top border-start"></div>
            </div></div>
         </div>
 
         <div class="tab-pane fade" id="editTab">
            <div class="card"><div class="card-body">
-              <div class="input-group mb-3">
-                 <input type="text" id="searchEditInput" class="form-control" placeholder="ค้นหาด้วย VN หรือ HN">
-                 <button id="searchEditBtn" class="btn btn-warning">ค้นหา</button>
+              <div class="input-group mb-3" style="max-width: 500px;">
+                 <input type="text" id="searchEditInput" class="form-control" placeholder="กรอกเลข VN หรือ HN">
+                 <button id="searchEditBtn" class="btn btn-warning text-dark"><i class="bi bi-search me-2"></i>ค้นหาเพื่อแก้ไข</button>
               </div>
               <div id="editForm"></div>
            </div></div>
@@ -195,9 +228,9 @@
 
         <div class="tab-pane fade" id="printTab">
            <div class="card"><div class="card-body">
-              <div class="input-group mb-3">
-                 <input type="text" id="searchPrintInput" class="form-control" placeholder="VN หรือ HN">
-                 <button id="searchPrintBtn" class="btn btn-primary">ค้นหา</button>
+              <div class="input-group mb-3" style="max-width: 500px;">
+                 <input type="text" id="searchPrintInput" class="form-control" placeholder="กรอกเลข VN หรือ HN">
+                 <button id="searchPrintBtn" class="btn btn-primary"><i class="bi bi-search me-2"></i>ค้นหาใบนัด</button>
               </div>
               <div id="printPreview"></div>
            </div></div>
@@ -209,11 +242,9 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    /* ====================== CONFIG ====================== */
-    // ⚠️ อย่าลืมอัปเดต URL นี้ทุกครั้งหลัง Deploy!
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzRb1p8vVodhxq4_a70GjCqLDuJ06ErODAKTreVrWA7b91GhqpL0xxWlRBN_XsIqdik_w/exec';
+    // ⚠️ เปลี่ยน URL Script ของคุณที่นี่
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyehUkdb7eV5MzIjs5OcOjLAcIHNP6YnqnU0QpPKlCjsUrKB_8GrYNePSDYTBk6ADiMHw/exec';
 
-    /* ====================== STATE ====================== */
     let medicines = [];
     let prescriptions = [];
     let currentPrescription = null;
@@ -221,7 +252,6 @@
     let foundPrescriptionForEdit = null;
     let currentCalendarDate = new Date();
 
-    /* ====================== UTILS ====================== */
     const qs = (s)=>document.querySelector(s);
     const qsa = (s)=>[...document.querySelectorAll(s)];
     const getDateString = (d) => {
@@ -246,10 +276,10 @@
     function toast(msg, c='blue'){ 
        const d=document.createElement('div'); 
        d.className=`position-fixed top-0 end-0 m-3 px-3 py-2 text-white rounded shadow bg-${c=='green'?'success':(c=='red'?'danger':'primary')}`;
+       d.style.zIndex = 10000;
        d.textContent=msg; document.body.append(d); setTimeout(()=>d.remove(),3000); 
     }
 
-    /* ====================== API ====================== */
     async function apiGet(act, p={}){
        const u = new URL(SCRIPT_URL); u.searchParams.set('action', act);
        Object.keys(p).forEach(k=>u.searchParams.set(k,p[k]));
@@ -259,7 +289,6 @@
        return fetch(SCRIPT_URL, {method:'POST', body:JSON.stringify({action:act, ...data})}).then(r=>r.json());
     }
 
-    /* ====================== INIT ====================== */
     document.addEventListener('DOMContentLoaded', ()=>{
        qs('#loginForm').addEventListener('submit', async(e)=>{
           e.preventDefault();
@@ -272,7 +301,6 @@
 
     async function initApp(){
        showLoading(true);
-       // [Modified] ไม่มีการโหลด VN ล่วงหน้าแล้ว
        await Promise.all([loadMedicines(), loadPrescriptions()]);
        
        qs('#medicineForm').addEventListener('submit', saveMedicine);
@@ -289,21 +317,19 @@
        qs('#productionDate').value = getDateString(new Date());
        qs('#firstPickupDate').value = getDateString(new Date());
        qs('#doctorAppointment').value = getDateString(new Date());
-       
        renderCalendar();
        showLoading(false);
     }
     
     async function loadMedicines(){
        const res = await apiGet('listMedicines'); medicines = res.medicines || [];
-       qs('#medicineSelect').innerHTML = '<option value="">เลือกยา</option>' + medicines.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
-       qs('#medicineListBody').innerHTML = medicines.map(m => `<tr><td>${m.name}</td><td>${m.bottleVolume}</td><td>${m.tabletsPerBottle}</td><td>${m.isRTM?'RTM':'ทั่วไป'}</td><td><button class="btn btn-sm btn-danger" onclick="deleteMedicine('${m.id}')">ลบ</button></td></tr>`).join('');
+       qs('#medicineSelect').innerHTML = '<option value="">-- กรุณาเลือกยา --</option>' + medicines.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+       qs('#medicineListBody').innerHTML = medicines.map(m => `<tr><td>${m.name}</td><td>${m.bottleVolume}</td><td>${m.tabletsPerBottle}</td><td>${m.isRTM?'<span class="badge bg-warning text-dark">RTM</span>':'ทั่วไป'}</td><td><button class="btn btn-sm btn-outline-danger" onclick="deleteMedicine('${m.id}')"><i class="bi bi-trash"></i></button></td></tr>`).join('');
     }
     async function loadPrescriptions(){
        const res = await apiGet('listPrescriptions'); prescriptions = res.prescriptions || [];
     }
 
-    /* [Logic Corrected] RTM Calculation Logic */
     function buildSchedule(startStr, docDateStr, dose, med) {
        const start = parseDate(startStr);
        const end = parseDate(docDateStr);
@@ -315,10 +341,9 @@
        let round = 1;
        let daysCovered = 0;
 
-       // 1. นัดตามอายุผงยา (นาน)
+       // Logic: นัดตาม RTM Life แต่จ่ายขวดตามอายุที่สั้นสุด
        const maxIntervalDays = med.isRTM ? (med.rtmShelfLife || 30) : (med.shelfLife || 7);
        
-       // 2. จ่ายขวดตามอายุหลังผสม (สั้น) หรือ วันที่กินหมด
        const daysByVolume = med.bottleVolume / dose;
        const daysByExpiry = med.isRTM ? (med.mixedShelfLife || 7) : (med.shelfLife || 7);
        const daysPerBottle = Math.min(daysByVolume, daysByExpiry);
@@ -347,10 +372,8 @@
        return schedule;
     }
 
-    /* [Modified] Save Prescription - Handle Auto VN */
     async function savePrescription(e) {
        e.preventDefault();
-       // ส่ง VN เป็นค่าว่าง เพื่อบอก Server ว่า "ช่วยสร้างเลขให้หน่อย"
        const currentVN = ''; 
        
        const medId = qs('#medicineSelect').value;
@@ -373,9 +396,8 @@
        showLoading(false);
        
        if (res.success) {
-          // Server ตอบกลับมาพร้อมเลข VN ที่สร้างเสร็จแล้ว (res.vn)
           p.vn = res.vn; 
-          qs('#vnDisplay').value = res.vn; // อัปเดตหน้าจอให้เห็นเลข
+          qs('#vnDisplay').value = res.vn;
 
           currentPrescription = {...p, medicine: med, createdDate: getDateString(new Date())};
           renderResultCard();
@@ -384,7 +406,16 @@
        } else { toast(res.message, 'red'); }
     }
 
-    /* Calendar Rendering */
+    function renderResultCard(){ 
+        const p = currentPrescription; 
+        qs('#patientPrescriptionCard').classList.remove('d-none'); 
+        qs('#patientName').textContent = `${p.firstName} ${p.lastName}`; 
+        qs('#patientMeta').innerHTML = `<span class="badge bg-light text-dark border">VN: ${p.vn}</span> <span class="badge bg-light text-dark border">HN: ${p.hn}</span>`; 
+        qs('#prescriptionTableBody').innerHTML = p.schedule.map(s=>`<tr><td>${s.round}</td><td>${thaiDate(s.date)}</td><td class="text-center fw-bold text-primary">${s.bottles}</td><td>${thaiDate(s.expiry)}</td></tr>`).join(''); 
+        // Scroll to card
+        qs('#patientPrescriptionCard').scrollIntoView({behavior: 'smooth'});
+    }
+
     function renderCalendar(){
        const m = currentCalendarDate.getMonth();
        const y = currentCalendarDate.getFullYear();
@@ -405,8 +436,8 @@
                     if(s.date === dateStr) {
                         htmlEvents += `
                         <div class="calendar-event" title="HN:${p.hn} ${p.firstName} - ${p.medicineName}">
-                           <span class="fw-bold">HN:${p.hn}</span> ${p.firstName}<br>
-                           <small>${p.medicineName} (${s.bottles}ขวด)</small>
+                           <span class="fw-bold">${p.hn}</span> ${p.firstName}<br>
+                           <span class="text-truncate d-block">${p.medicineName} (${s.bottles})</span>
                         </div>`;
                     }
                 });
@@ -414,8 +445,8 @@
 
              grid.innerHTML += `
                <div class="col" style="flex:0 0 14.28%">
-                  <div class="calendar-day ${isCurrMonth?'':'bg-light text-muted'}">
-                     <div class="fw-bold text-end">${curr.getDate()}</div>
+                  <div class="calendar-day ${isCurrMonth?'':'bg-light text-muted border-bottom border-end'}">
+                     <div class="fw-bold text-end mb-1 ${isCurrMonth?'text-dark':'text-secondary'}">${curr.getDate()}</div>
                      ${htmlEvents}
                   </div>
                </div>`;
@@ -423,7 +454,6 @@
        }
     }
 
-    /* Edit Logic */
     async function searchForEdit(){
         const k = qs('#searchEditInput').value.trim();
         if(!k) return alert('กรุณากรอกข้อมูลค้นหา');
@@ -436,13 +466,14 @@
         foundPrescriptionForEdit = JSON.parse(JSON.stringify(p));
         renderEditForm();
     }
+    
     function renderEditForm(){
         const p = foundPrescriptionForEdit;
-        let html = `<div class="card border-warning"><div class="card-header bg-warning text-dark d-flex justify-content-between"><span>แก้ไขนัด: ${p.firstName} ${p.lastName} (HN: ${p.hn})</span><span class="badge bg-white text-dark">${p.medicineName}</span></div><div class="card-body"><table class="table table-bordered table-sm"><thead class="table-light"><tr><th>รอบ</th><th>วันที่</th><th>ขวด</th><th>จัดการ</th></tr></thead><tbody id="editTableBody">`;
+        let html = `<div class="card border-warning shadow-sm"><div class="card-header bg-warning text-dark d-flex justify-content-between"><span><i class="bi bi-pencil me-2"></i>แก้ไขนัด: ${p.firstName} ${p.lastName} (HN: ${p.hn})</span><span class="badge bg-white text-dark">${p.medicineName}</span></div><div class="card-body"><table class="table table-bordered table-sm"><thead class="table-light"><tr><th>รอบ</th><th>วันที่นัด</th><th>จำนวน(ขวด)</th><th class="text-center">ลบ</th></tr></thead><tbody id="editTableBody">`;
         (p.schedule||[]).forEach((s, idx) => {
-            html += `<tr><td><input type="number" class="form-control form-control-sm" value="${s.round}" onchange="updateLocalSchedule(${idx}, 'round', this.value)"></td><td><input type="date" class="form-control form-control-sm" value="${s.date}" onchange="updateLocalSchedule(${idx}, 'date', this.value)"></td><td><input type="number" class="form-control form-control-sm" value="${s.bottles}" onchange="updateLocalSchedule(${idx}, 'bottles', this.value)"></td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="removeRound(${idx})"><i class="bi bi-trash"></i></button></td></tr>`;
+            html += `<tr><td><input type="number" class="form-control form-control-sm" value="${s.round}" onchange="updateLocalSchedule(${idx}, 'round', this.value)"></td><td><input type="date" class="form-control form-control-sm" value="${s.date}" onchange="updateLocalSchedule(${idx}, 'date', this.value)"></td><td><input type="number" class="form-control form-control-sm" value="${s.bottles}" onchange="updateLocalSchedule(${idx}, 'bottles', this.value)"></td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="removeRound(${idx})"><i class="bi bi-x-lg"></i></button></td></tr>`;
         });
-        html += `</tbody></table><div class="d-flex justify-content-between mt-3"><button class="btn btn-secondary" onclick="addRound()"><i class="bi bi-plus-circle"></i> เพิ่มรอบนัด</button><button class="btn btn-success px-4" onclick="saveEditedSchedule()">บันทึกการแก้ไขทั้งหมด</button></div></div></div>`;
+        html += `</tbody></table><div class="d-flex justify-content-between mt-3"><button class="btn btn-secondary btn-sm" onclick="addRound()"><i class="bi bi-plus-lg"></i> เพิ่มรอบ</button><button class="btn btn-success px-4" onclick="saveEditedSchedule()"><i class="bi bi-check-lg me-2"></i>บันทึกการแก้ไข</button></div></div></div>`;
         qs('#editForm').innerHTML = html;
     }
     window.updateLocalSchedule = (idx, field, value) => { foundPrescriptionForEdit.schedule[idx][field] = value; };
@@ -463,27 +494,25 @@
         if(res.success){ toast('บันทึกข้อมูลสำเร็จ','green'); await loadPrescriptions(); renderCalendar(); qs('#editForm').innerHTML = ''; } else { toast(res.message, 'red'); }
     };
 
-    /* A4 Printing (Clean & Professional) */
     function printPrescription(p){
        if(!p) return;
-       const html = `<html><head><style>@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');body{font-family:'Sarabun',sans-serif;padding:20px;color:#000}@page{size:A4;margin:0}.container{width:100%;max-width:210mm;margin:0 auto;padding-top:20px}.header{text-align:center;margin-bottom:20px}h1{font-size:22px;margin-bottom:5px;font-weight:bold}h2{font-size:16px;font-weight:normal;margin:0}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px;font-size:16px}.info-item{margin-bottom:5px}table{width:100%;border-collapse:collapse;margin-top:10px}th{border-top:1px solid #000;border-bottom:1px solid #000;padding:8px;text-align:left}td{border-bottom:1px solid #eee;padding:8px;vertical-align:middle}</style></head><body><div class="container"><div class="header"><h1>ใบค้างรับยาผลิตเฉพาะราย (รับยาหลัง 14.00 น.)</h1><h2>งานจ่ายยาผู้ป่วยนอก โรงพยาบาลนพรัตนราชธานี</h2></div><div class="info-grid"><div><div class="info-item"><strong>VN:</strong> ${p.vn}</div><div class="info-item"><strong>HN:</strong> ${p.hn}</div><div class="info-item"><strong>ชื่อ-สกุล:</strong> ${p.firstName} ${p.lastName}</div></div><div><div class="info-item"><strong>รายการยา:</strong> ${p.medicineName}</div><div class="info-item"><strong>วันที่ออกใบนัด:</strong> ${thaiDate(getDateString(new Date()))}</div><div class="info-item"><strong>เบอร์โทร:</strong> ${p.phone}</div></div></div><hr style="border:0;border-top:1px solid #000;"><table><thead><tr><th>รายการยา</th><th align="center">จำนวน (ขวด)</th><th>วันนัดรับยา</th><th align="center">ผู้จ่ายยา</th></tr></thead><tbody>${(p.schedule||[]).map(s=>`<tr><td>${p.medicineName}</td><td align="center" style="font-weight:bold;font-size:18px;">${s.bottles}</td><td>${thaiDate(s.date)}</td><td align="center">............................</td></tr>`).join('')}</tbody></table><div style="margin-top:30px;font-size:14px;text-align:center;">* กรุณานำใบนัดนี้มายื่นเพื่อรับยาตามวันที่กำหนด *</div></div></body></html>`;
+       const html = `<html><head><style>@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');body{font-family:'Sarabun',sans-serif;padding:30px;color:#000}@page{size:A4;margin:0}.container{width:100%;max-width:210mm;margin:0 auto;padding-top:20px}.header{text-align:center;margin-bottom:30px}h1{font-size:24px;margin-bottom:8px;font-weight:bold}h2{font-size:18px;font-weight:normal;margin:0;color:#333}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;font-size:16px}.info-item{margin-bottom:8px}table{width:100%;border-collapse:collapse;margin-top:15px}th{border-top:1.5px solid #000;border-bottom:1.5px solid #000;padding:10px;text-align:left;font-weight:bold}td{border-bottom:1px solid #ccc;padding:10px;vertical-align:middle}.note{margin-top:40px;font-size:14px;text-align:center;border-top:1px dashed #999;padding-top:10px}</style></head><body><div class="container"><div class="header"><h1>ใบค้างรับยาผลิตเฉพาะราย (รับยาหลัง 14.00 น.)</h1><h2>งานจ่ายยาผู้ป่วยนอก โรงพยาบาลนพรัตนราชธานี</h2></div><div class="info-grid"><div><div class="info-item"><strong>VN:</strong> ${p.vn}</div><div class="info-item"><strong>HN:</strong> ${p.hn}</div><div class="info-item"><strong>ชื่อ-สกุล:</strong> ${p.firstName} ${p.lastName}</div></div><div><div class="info-item"><strong>รายการยา:</strong> ${p.medicineName}</div><div class="info-item"><strong>วันที่ออกใบนัด:</strong> ${thaiDate(getDateString(new Date()))}</div><div class="info-item"><strong>เบอร์โทร:</strong> ${p.phone}</div></div></div><table style="width:100%"><thead><tr><th>รายการยา</th><th align="center">จำนวน (ขวด)</th><th>วันนัดรับยา</th><th align="center">ผู้จ่ายยา</th></tr></thead><tbody>${(p.schedule||[]).map(s=>`<tr><td>${p.medicineName}</td><td align="center" style="font-weight:bold;font-size:20px;">${s.bottles}</td><td>${thaiDate(s.date)}</td><td align="center">............................</td></tr>`).join('')}</tbody></table><div class="note">* กรุณานำใบนัดนี้มายื่นเพื่อรับยาตามวันที่กำหนด *</div></div></body></html>`;
        const iframe = document.createElement('iframe'); iframe.style.display='none'; document.body.append(iframe); const doc = iframe.contentWindow.document; doc.write(html); doc.close(); setTimeout(()=>{ iframe.contentWindow.print(); iframe.remove(); }, 500);
     }
 
-    /* A5 Production Printing */
     function printProductionA5(){
        const dateStr = qs('#productionDate').value;
        const rows = qs('#productionTable tbody').innerHTML;
-       const html = `<html><head><style>@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');body{font-family:'Sarabun',sans-serif;margin:0;padding:10px}@page{size:A5;margin:0}.a5-container{width:148mm;min-height:200mm;padding:10mm;box-sizing:border-box}h3{text-align:center;margin-bottom:5px}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}th,td{border:1px solid black;padding:4px}.footer{margin-top:20px;font-size:12px}</style></head><body><div class="a5-container"><h3>ใบเบิกยาเตรียมผลิตผู้ป่วยเฉพาะราย</h3><div><strong>เรียน</strong> หัวหน้างานผลิตยา</div><p>ขอเบิกยาเตรียมสำหรับผู้ป่วยเฉพาะราย (ประจำวันที่ ${thaiDate(dateStr)})</p><table><thead><tr><th>ลำดับ</th><th>รายการยาเตรียม</th><th>ขวด</th><th>เม็ดที่ใช้</th><th>หมายเหตุ</th></tr></thead><tbody>${rows}</tbody></table><div class="footer"><p>เวลารับยา .............................................</p><p align="right" style="margin-top:30px;">ลงชื่อ ..................................................... เภสัชกร</p></div></div></body></html>`;
+       const html = `<html><head><style>@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');body{font-family:'Sarabun',sans-serif;margin:0;padding:15px}@page{size:A5;margin:0}.a5-container{width:148mm;min-height:200mm;padding:5mm;box-sizing:border-box}h3{text-align:center;margin-bottom:10px;font-weight:bold}table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}th,td{border:1px solid #000;padding:5px}.footer{margin-top:30px;font-size:13px}</style></head><body><div class="a5-container"><h3>ใบเบิกยาเตรียมผลิตผู้ป่วยเฉพาะราย</h3><div><strong>เรียน</strong> หัวหน้างานผลิตยา</div><p>ขอเบิกยาเตรียมสำหรับผู้ป่วยเฉพาะราย (ประจำวันที่ ${thaiDate(dateStr)})</p><table><thead><tr><th>ลำดับ</th><th>รายการยาเตรียม</th><th align="center">ขวด</th><th align="center">เม็ดที่ใช้</th><th>หมายเหตุ</th></tr></thead><tbody>${rows}</tbody></table><div class="footer"><p>เวลารับยา .............................................</p><p align="right" style="margin-top:40px;">ลงชื่อ ..................................................... เภสัชกร</p></div></div></body></html>`;
        const iframe = document.createElement('iframe'); iframe.style.display='none'; document.body.append(iframe); const doc = iframe.contentWindow.document; doc.write(html); doc.close(); setTimeout(()=>{ iframe.contentWindow.print(); iframe.remove(); }, 500);
     }
     
     // Other actions
-    async function searchProduction(){ const dateStr = qs('#productionDate').value; showLoading(true); await loadPrescriptions(); const list = []; prescriptions.forEach(p => { (p.schedule||[]).forEach(s => { if(s.date === dateStr){ const med = medicines.find(m=> m.id === p.medicineId || m.name === p.medicineName); const tabs = med ? (med.tabletsPerBottle || 0) : 0; list.push({ vn: p.vn, name: `${p.firstName} ${p.lastName}`, medName: p.medicineName, bottles: s.bottles, totalTablets: s.bottles * tabs, note: '' }); } }); }); list.sort((a,b) => a.medName.localeCompare(b.medName) || a.vn.localeCompare(b.vn)); const tbody = qs('#productionTable tbody'); tbody.innerHTML = list.length===0 ? '<tr><td colspan="5" class="text-center text-muted">ไม่พบรายการ</td></tr>' : list.map((item, i) => `<tr><td>${i+1}</td><td>${item.medName} (VN:${item.vn} ${item.name})</td><td>${item.bottles}</td><td>${item.totalTablets}</td><td>${item.note}</td></tr>`).join(''); qs('#productionResult').classList.remove('d-none'); showLoading(false); }
+    async function searchProduction(){ const dateStr = qs('#productionDate').value; showLoading(true); await loadPrescriptions(); const list = []; prescriptions.forEach(p => { (p.schedule||[]).forEach(s => { if(s.date === dateStr){ const med = medicines.find(m=> m.id === p.medicineId || m.name === p.medicineName); const tabs = med ? (med.tabletsPerBottle || 0) : 0; list.push({ vn: p.vn, name: `${p.firstName} ${p.lastName}`, medName: p.medicineName, bottles: s.bottles, totalTablets: s.bottles * tabs, note: '' }); } }); }); list.sort((a,b) => a.medName.localeCompare(b.medName) || a.vn.localeCompare(b.vn)); const tbody = qs('#productionTable tbody'); tbody.innerHTML = list.length===0 ? '<tr><td colspan="5" class="text-center text-muted">ไม่พบรายการผลิตสำหรับวันนี้</td></tr>' : list.map((item, i) => `<tr><td>${i+1}</td><td>${item.medName}<br><small class="text-muted">(${item.vn} ${item.name})</small></td><td class="text-center fw-bold">${item.bottles}</td><td class="text-center">${item.totalTablets}</td><td>${item.note}</td></tr>`).join(''); qs('#productionResult').classList.remove('d-none'); showLoading(false); }
     async function saveMedicine(e){ e.preventDefault(); showLoading(true); await apiPost('saveMedicine', {medicine:{ name: qs('#medicineName').value, bottleVolume: qs('#bottleVolume').value, shelfLife: qs('#shelfLife').value, tabletsPerBottle: qs('#tabletsPerBottle').value, isRTM: qs('#isRTM').checked, rtmShelfLife: qs('#rtmShelfLife').value, mixedShelfLife: qs('#mixedShelfLife').value }}); await loadMedicines(); qs('#medicineForm').reset(); showLoading(false); }
     async function deleteMedicine(id){ if(!confirm('ยืนยันลบ?')) return; await apiPost('deleteMedicine', {id}); await loadMedicines(); }
-    function renderResultCard(){ const p = currentPrescription; qs('#patientPrescriptionCard').classList.remove('d-none'); qs('#patientName').textContent = `${p.firstName} ${p.lastName}`; qs('#patientMeta').textContent = `VN: ${p.vn} | HN: ${p.hn}`; qs('#prescriptionTableBody').innerHTML = p.schedule.map(s=>`<tr><td>${s.round}</td><td>${thaiDate(s.date)}</td><td class="fw-bold text-primary">${s.bottles}</td><td>${thaiDate(s.expiry)}</td></tr>`).join(''); }
-    async function searchForPrintTab(){ const k = qs('#searchPrintInput').value; const res = await apiGet('listPrescriptions', {q:k}); const p = (res.prescriptions||[])[0]; if(!p) { qs('#printPreview').innerHTML = '<div class="text-danger">ไม่พบข้อมูล</div>'; foundPrescriptionForPrint = null; return; } foundPrescriptionForPrint = p; qs('#printPreview').innerHTML = `<div class="border p-3 rounded d-flex justify-content-between align-items-center"><div><strong>${p.vn}</strong>: ${p.firstName} ${p.lastName}</div><button class="btn btn-info" onclick="printPrescription(foundPrescriptionForPrint)">พิมพ์</button></div>`; }
+    function renderResultCard(){ const p = currentPrescription; qs('#patientPrescriptionCard').classList.remove('d-none'); qs('#patientName').textContent = `${p.firstName} ${p.lastName}`; qs('#patientMeta').innerHTML = `<span class="badge bg-secondary">VN: ${p.vn}</span> <span class="badge bg-secondary">HN: ${p.hn}</span>`; qs('#prescriptionTableBody').innerHTML = p.schedule.map(s=>`<tr><td>${s.round}</td><td>${thaiDate(s.date)}</td><td class="text-center fw-bold text-primary">${s.bottles}</td><td>${thaiDate(s.expiry)}</td></tr>`).join(''); }
+    async function searchForPrintTab(){ const k = qs('#searchPrintInput').value; const res = await apiGet('listPrescriptions', {q:k}); const p = (res.prescriptions||[])[0]; if(!p) { qs('#printPreview').innerHTML = '<div class="alert alert-danger">ไม่พบข้อมูลใบสั่งยา</div>'; foundPrescriptionForPrint = null; return; } foundPrescriptionForPrint = p; qs('#printPreview').innerHTML = `<div class="card shadow-sm"><div class="card-body d-flex justify-content-between align-items-center"><div><h6 class="mb-0 fw-bold">${p.vn} - ${p.firstName} ${p.lastName}</h6><small class="text-muted">${p.medicineName}</small></div><button class="btn btn-info text-white" onclick="printPrescription(foundPrescriptionForPrint)"><i class="bi bi-printer me-2"></i>พิมพ์</button></div></div>`; }
   </script>
 </body>
 </html>
