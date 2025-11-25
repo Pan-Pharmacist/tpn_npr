@@ -30,12 +30,12 @@
     }
     .calendar-event:hover { background: #cfe2ff; }
 
-    /* Print Logic: ซ่อน Link และ Header/Footer */
+    /* Print Logic */
     @media print { 
       .no-print{ display:none !important } 
       .print-only{ display:block !important } 
       body{ background:#fff !important; overflow: visible; height: auto; }
-      @page { margin: 0; size: auto; } /* Fix: Hides browser header/footer/https links */
+      @page { margin: 0; size: auto; }
     }
   </style>
 </head>
@@ -90,8 +90,8 @@
             <div class="card-body">
               <form id="prescriptionForm">
                 <div class="row g-3 mb-4">
-                  <div class="col-md-2"><label class="form-label fw-bold">VN (Auto)</label><input type="text" id="vnDisplay" class="form-control" readonly style="background:#e9ecef; font-weight:bold; color:#2563eb;"></div>
-                  <div class="col-md-10 d-flex align-items-end"><small class="text-muted">*ระบบจะรัน VN ต่อจากเลขล่าสุดในฐานข้อมูล</small></div>
+                  <div class="col-md-3"><label class="form-label fw-bold">VN</label><input type="text" id="vnDisplay" class="form-control" placeholder="ออกเลขอัตโนมัติเมื่อบันทึก" readonly style="background:#e9ecef; font-weight:bold; color:#2563eb;"></div>
+                  <div class="col-md-9 d-flex align-items-end"><small class="text-muted">*ระบบจะรัน VN ต่อจากเลขล่าสุดในฐานข้อมูลให้ทันทีที่กดปุ่มบันทึก</small></div>
                 </div>
                 <div class="row g-3">
                   <div class="col-md-6"><label class="form-label">HN</label><input type="text" id="hn" class="form-control" required></div>
@@ -272,7 +272,8 @@
 
     async function initApp(){
        showLoading(true);
-       await Promise.all([loadMedicines(), loadPrescriptions(), fetchNextVN()]);
+       // [Modified] ไม่มีการโหลด VN ล่วงหน้าแล้ว
+       await Promise.all([loadMedicines(), loadPrescriptions()]);
        
        qs('#medicineForm').addEventListener('submit', saveMedicine);
        qs('#prescriptionForm').addEventListener('submit', savePrescription);
@@ -285,28 +286,12 @@
        qs('#nextMonth').addEventListener('click', ()=>{ currentCalendarDate.setMonth(currentCalendarDate.getMonth()+1); renderCalendar(); });
        qs('#isRTM').addEventListener('change', (e)=>qsa('.rtm-only').forEach(x=>x.classList.toggle('d-none',!e.target.checked)));
        
-       qs('#vnDisplay').value = 'กำลังโหลด...';
        qs('#productionDate').value = getDateString(new Date());
        qs('#firstPickupDate').value = getDateString(new Date());
        qs('#doctorAppointment').value = getDateString(new Date());
        
        renderCalendar();
        showLoading(false);
-    }
-
-    /* [Fix] Fail-safe VN Loading */
-    async function fetchNextVN() {
-       const vnInput = qs('#vnDisplay');
-       vnInput.value = 'กำลังโหลด...';
-       try {
-         const fetchPromise = apiGet('getNextVN');
-         const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000));
-         const res = await Promise.race([fetchPromise, timeoutPromise]);
-         if (res && res.vn) vnInput.value = res.vn; else throw new Error('No VN');
-       } catch(e) { 
-         vnInput.value = 'Auto-' + Math.floor(Date.now() / 1000).toString().slice(-4);
-         console.warn('VN Load timeout, using temporary VN');
-       }
     }
     
     async function loadMedicines(){
@@ -318,7 +303,7 @@
        const res = await apiGet('listPrescriptions'); prescriptions = res.prescriptions || [];
     }
 
-    /* [Fix] RTM Calculation Logic */
+    /* [Logic Corrected] RTM Calculation Logic */
     function buildSchedule(startStr, docDateStr, dose, med) {
        const start = parseDate(startStr);
        const end = parseDate(docDateStr);
@@ -362,12 +347,12 @@
        return schedule;
     }
 
+    /* [Modified] Save Prescription - Handle Auto VN */
     async function savePrescription(e) {
        e.preventDefault();
-       let currentVN = qs('#vnDisplay').value;
-       if (currentVN === 'กำลังโหลด...' || currentVN === '') {
-           currentVN = 'Man-' + Math.floor(Date.now() / 1000).toString().slice(-4);
-       }
+       // ส่ง VN เป็นค่าว่าง เพื่อบอก Server ว่า "ช่วยสร้างเลขให้หน่อย"
+       const currentVN = ''; 
+       
        const medId = qs('#medicineSelect').value;
        const med = medicines.find(x => x.id === medId);
        if (!med) return alert('กรุณาเลือกยา');
@@ -388,14 +373,18 @@
        showLoading(false);
        
        if (res.success) {
+          // Server ตอบกลับมาพร้อมเลข VN ที่สร้างเสร็จแล้ว (res.vn)
+          p.vn = res.vn; 
+          qs('#vnDisplay').value = res.vn; // อัปเดตหน้าจอให้เห็นเลข
+
           currentPrescription = {...p, medicine: med, createdDate: getDateString(new Date())};
           renderResultCard();
-          await fetchNextVN(); await loadPrescriptions();
-          toast('บันทึกสำเร็จ', 'green');
+          await loadPrescriptions();
+          toast('บันทึกสำเร็จ (VN:' + res.vn + ')', 'green');
        } else { toast(res.message, 'red'); }
     }
 
-    /* [Fix] Calendar Rendering */
+    /* Calendar Rendering */
     function renderCalendar(){
        const m = currentCalendarDate.getMonth();
        const y = currentCalendarDate.getFullYear();
@@ -434,7 +423,7 @@
        }
     }
 
-    /* [Fix] Edit Logic */
+    /* Edit Logic */
     async function searchForEdit(){
         const k = qs('#searchEditInput').value.trim();
         if(!k) return alert('กรุณากรอกข้อมูลค้นหา');
@@ -474,14 +463,14 @@
         if(res.success){ toast('บันทึกข้อมูลสำเร็จ','green'); await loadPrescriptions(); renderCalendar(); qs('#editForm').innerHTML = ''; } else { toast(res.message, 'red'); }
     };
 
-    /* [Fix] Clean A4 Printing (Sarabun, No box, Professional) */
+    /* A4 Printing (Clean & Professional) */
     function printPrescription(p){
        if(!p) return;
        const html = `<html><head><style>@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');body{font-family:'Sarabun',sans-serif;padding:20px;color:#000}@page{size:A4;margin:0}.container{width:100%;max-width:210mm;margin:0 auto;padding-top:20px}.header{text-align:center;margin-bottom:20px}h1{font-size:22px;margin-bottom:5px;font-weight:bold}h2{font-size:16px;font-weight:normal;margin:0}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px;font-size:16px}.info-item{margin-bottom:5px}table{width:100%;border-collapse:collapse;margin-top:10px}th{border-top:1px solid #000;border-bottom:1px solid #000;padding:8px;text-align:left}td{border-bottom:1px solid #eee;padding:8px;vertical-align:middle}</style></head><body><div class="container"><div class="header"><h1>ใบค้างรับยาผลิตเฉพาะราย (รับยาหลัง 14.00 น.)</h1><h2>งานจ่ายยาผู้ป่วยนอก โรงพยาบาลนพรัตนราชธานี</h2></div><div class="info-grid"><div><div class="info-item"><strong>VN:</strong> ${p.vn}</div><div class="info-item"><strong>HN:</strong> ${p.hn}</div><div class="info-item"><strong>ชื่อ-สกุล:</strong> ${p.firstName} ${p.lastName}</div></div><div><div class="info-item"><strong>รายการยา:</strong> ${p.medicineName}</div><div class="info-item"><strong>วันที่ออกใบนัด:</strong> ${thaiDate(getDateString(new Date()))}</div><div class="info-item"><strong>เบอร์โทร:</strong> ${p.phone}</div></div></div><hr style="border:0;border-top:1px solid #000;"><table><thead><tr><th>รายการยา</th><th align="center">จำนวน (ขวด)</th><th>วันนัดรับยา</th><th align="center">ผู้จ่ายยา</th></tr></thead><tbody>${(p.schedule||[]).map(s=>`<tr><td>${p.medicineName}</td><td align="center" style="font-weight:bold;font-size:18px;">${s.bottles}</td><td>${thaiDate(s.date)}</td><td align="center">............................</td></tr>`).join('')}</tbody></table><div style="margin-top:30px;font-size:14px;text-align:center;">* กรุณานำใบนัดนี้มายื่นเพื่อรับยาตามวันที่กำหนด *</div></div></body></html>`;
        const iframe = document.createElement('iframe'); iframe.style.display='none'; document.body.append(iframe); const doc = iframe.contentWindow.document; doc.write(html); doc.close(); setTimeout(()=>{ iframe.contentWindow.print(); iframe.remove(); }, 500);
     }
 
-    /* [Fix] Clean A5 Production Printing */
+    /* A5 Production Printing */
     function printProductionA5(){
        const dateStr = qs('#productionDate').value;
        const rows = qs('#productionTable tbody').innerHTML;
@@ -489,7 +478,7 @@
        const iframe = document.createElement('iframe'); iframe.style.display='none'; document.body.append(iframe); const doc = iframe.contentWindow.document; doc.write(html); doc.close(); setTimeout(()=>{ iframe.contentWindow.print(); iframe.remove(); }, 500);
     }
     
-    // Other actions (search production, save medicine, delete medicine) kept same as logic is sound.
+    // Other actions
     async function searchProduction(){ const dateStr = qs('#productionDate').value; showLoading(true); await loadPrescriptions(); const list = []; prescriptions.forEach(p => { (p.schedule||[]).forEach(s => { if(s.date === dateStr){ const med = medicines.find(m=> m.id === p.medicineId || m.name === p.medicineName); const tabs = med ? (med.tabletsPerBottle || 0) : 0; list.push({ vn: p.vn, name: `${p.firstName} ${p.lastName}`, medName: p.medicineName, bottles: s.bottles, totalTablets: s.bottles * tabs, note: '' }); } }); }); list.sort((a,b) => a.medName.localeCompare(b.medName) || a.vn.localeCompare(b.vn)); const tbody = qs('#productionTable tbody'); tbody.innerHTML = list.length===0 ? '<tr><td colspan="5" class="text-center text-muted">ไม่พบรายการ</td></tr>' : list.map((item, i) => `<tr><td>${i+1}</td><td>${item.medName} (VN:${item.vn} ${item.name})</td><td>${item.bottles}</td><td>${item.totalTablets}</td><td>${item.note}</td></tr>`).join(''); qs('#productionResult').classList.remove('d-none'); showLoading(false); }
     async function saveMedicine(e){ e.preventDefault(); showLoading(true); await apiPost('saveMedicine', {medicine:{ name: qs('#medicineName').value, bottleVolume: qs('#bottleVolume').value, shelfLife: qs('#shelfLife').value, tabletsPerBottle: qs('#tabletsPerBottle').value, isRTM: qs('#isRTM').checked, rtmShelfLife: qs('#rtmShelfLife').value, mixedShelfLife: qs('#mixedShelfLife').value }}); await loadMedicines(); qs('#medicineForm').reset(); showLoading(false); }
     async function deleteMedicine(id){ if(!confirm('ยืนยันลบ?')) return; await apiPost('deleteMedicine', {id}); await loadMedicines(); }
