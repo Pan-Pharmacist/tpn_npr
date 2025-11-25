@@ -30,12 +30,12 @@
     }
     .calendar-event:hover { background: #cfe2ff; }
 
-    /* Print Logic: ซ่อนปุ่มต่างๆ */
+    /* Print Logic: ซ่อน Link และ Header/Footer */
     @media print { 
       .no-print{ display:none !important } 
       .print-only{ display:block !important } 
       body{ background:#fff !important; overflow: visible; height: auto; }
-      @page { margin: 0; size: auto; } /* Key Fix for hiding header/footer links */
+      @page { margin: 0; size: auto; } /* Fix: Hides browser header/footer/https links */
     }
   </style>
 </head>
@@ -210,8 +210,8 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     /* ====================== CONFIG ====================== */
-    // ⚠️ เปลี่ยน URL นี้หลัง Deploy ใหม่ทุกครั้ง
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwoZFmHo8AlGXCa1lI7hEf_KTp_jg3_E1kGcE0KvoDWsjklqVe1Afm432Bw7IXALdFzXA/exec';
+    // ⚠️ อย่าลืมอัปเดต URL นี้ทุกครั้งหลัง Deploy!
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzS1cms8GHQW0TQQEVVuOFzQritBL2Xx2Km3NWdFwKHaEDwHtTY2fv15zur2ou9oWv8cQ/exec';
 
     /* ====================== STATE ====================== */
     let medicines = [];
@@ -294,10 +294,21 @@
        showLoading(false);
     }
 
-    async function fetchNextVN(){
-       try { const res = await apiGet('getNextVN'); qs('#vnDisplay').value = res.vn || '1'; } 
-       catch(e){ console.error(e); }
+    /* [Fix] Fail-safe VN Loading */
+    async function fetchNextVN() {
+       const vnInput = qs('#vnDisplay');
+       vnInput.value = 'กำลังโหลด...';
+       try {
+         const fetchPromise = apiGet('getNextVN');
+         const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000));
+         const res = await Promise.race([fetchPromise, timeoutPromise]);
+         if (res && res.vn) vnInput.value = res.vn; else throw new Error('No VN');
+       } catch(e) { 
+         vnInput.value = 'Auto-' + Math.floor(Date.now() / 1000).toString().slice(-4);
+         console.warn('VN Load timeout, using temporary VN');
+       }
     }
+    
     async function loadMedicines(){
        const res = await apiGet('listMedicines'); medicines = res.medicines || [];
        qs('#medicineSelect').innerHTML = '<option value="">เลือกยา</option>' + medicines.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
@@ -307,7 +318,84 @@
        const res = await apiGet('listPrescriptions'); prescriptions = res.prescriptions || [];
     }
 
-    /* ====================== CALENDAR (Fix: Show HN, Name, Med, Bottle) ====================== */
+    /* [Fix] RTM Calculation Logic */
+    function buildSchedule(startStr, docDateStr, dose, med) {
+       const start = parseDate(startStr);
+       const end = parseDate(docDateStr);
+       const diffTime = Math.abs(end - start);
+       const totalDaysNeeded = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24))); 
+       
+       const schedule = [];
+       let currentD = new Date(start);
+       let round = 1;
+       let daysCovered = 0;
+
+       // 1. นัดตามอายุผงยา (นาน)
+       const maxIntervalDays = med.isRTM ? (med.rtmShelfLife || 30) : (med.shelfLife || 7);
+       
+       // 2. จ่ายขวดตามอายุหลังผสม (สั้น) หรือ วันที่กินหมด
+       const daysByVolume = med.bottleVolume / dose;
+       const daysByExpiry = med.isRTM ? (med.mixedShelfLife || 7) : (med.shelfLife || 7);
+       const daysPerBottle = Math.min(daysByVolume, daysByExpiry);
+
+       while (daysCovered < totalDaysNeeded) {
+          let daysInThisRound = maxIntervalDays;
+          if ((daysCovered + daysInThisRound) > totalDaysNeeded) {
+             daysInThisRound = totalDaysNeeded - daysCovered;
+          }
+
+          const bottles = Math.ceil(daysInThisRound / daysPerBottle);
+          const expiryDate = new Date(currentD);
+          expiryDate.setDate(expiryDate.getDate() + daysInThisRound);
+
+          schedule.push({
+             round: round++,
+             date: getDateString(currentD),
+             bottles: bottles,
+             expiry: getDateString(expiryDate)
+          });
+
+          daysCovered += daysInThisRound;
+          currentD = new Date(expiryDate);
+          if(round > 50) break;
+       }
+       return schedule;
+    }
+
+    async function savePrescription(e) {
+       e.preventDefault();
+       let currentVN = qs('#vnDisplay').value;
+       if (currentVN === 'กำลังโหลด...' || currentVN === '') {
+           currentVN = 'Man-' + Math.floor(Date.now() / 1000).toString().slice(-4);
+       }
+       const medId = qs('#medicineSelect').value;
+       const med = medicines.find(x => x.id === medId);
+       if (!med) return alert('กรุณาเลือกยา');
+       
+       const p = {
+          vn: currentVN, hn: qs('#hn').value,
+          firstName: qs('#firstName').value, lastName: qs('#lastName').value,
+          phone: qs('#phone').value, medicineId: med.id, medicineName: med.name,
+          dailyDose: parseFloat(qs('#dailyDose').value),
+          firstPickupDate: qs('#firstPickupDate').value,
+          doctorAppointment: qs('#doctorAppointment').value
+       };
+       
+       p.schedule = buildSchedule(p.firstPickupDate, p.doctorAppointment, p.dailyDose, med);
+       
+       showLoading(true);
+       const res = await apiPost('savePrescription', {prescription: p});
+       showLoading(false);
+       
+       if (res.success) {
+          currentPrescription = {...p, medicine: med, createdDate: getDateString(new Date())};
+          renderResultCard();
+          await fetchNextVN(); await loadPrescriptions();
+          toast('บันทึกสำเร็จ', 'green');
+       } else { toast(res.message, 'red'); }
+    }
+
+    /* [Fix] Calendar Rendering */
     function renderCalendar(){
        const m = currentCalendarDate.getMonth();
        const y = currentCalendarDate.getFullYear();
@@ -322,7 +410,6 @@
              const dateStr = getDateString(curr); 
              const isCurrMonth = curr.getMonth() === m;
              
-             // หา Event ตรงวัน
              let htmlEvents = '';
              prescriptions.forEach(p=>{
                 (p.schedule||[]).forEach(s=>{ 
@@ -347,214 +434,67 @@
        }
     }
 
-    /* ====================== EDIT TAB (Fix: Add/Remove/Update) ====================== */
+    /* [Fix] Edit Logic */
     async function searchForEdit(){
         const k = qs('#searchEditInput').value.trim();
         if(!k) return alert('กรุณากรอกข้อมูลค้นหา');
         showLoading(true);
-        await loadPrescriptions(); // รีเฟรชข้อมูลก่อน
+        await loadPrescriptions(); 
         const res = await apiGet('listPrescriptions', {q:k});
         showLoading(false);
-        
         const p = (res.prescriptions||[])[0];
         if(!p) return toast('ไม่พบข้อมูล','red');
-        foundPrescriptionForEdit = JSON.parse(JSON.stringify(p)); // Clone object
+        foundPrescriptionForEdit = JSON.parse(JSON.stringify(p));
         renderEditForm();
     }
-
     function renderEditForm(){
         const p = foundPrescriptionForEdit;
-        let html = `
-        <div class="card border-warning">
-            <div class="card-header bg-warning text-dark d-flex justify-content-between">
-                <span>แก้ไขนัด: ${p.firstName} ${p.lastName} (HN: ${p.hn})</span>
-                <span class="badge bg-white text-dark">${p.medicineName}</span>
-            </div>
-            <div class="card-body">
-                <table class="table table-bordered table-sm">
-                    <thead class="table-light"><tr><th>รอบ</th><th>วันที่</th><th>ขวด</th><th>จัดการ</th></tr></thead>
-                    <tbody id="editTableBody">
-        `;
+        let html = `<div class="card border-warning"><div class="card-header bg-warning text-dark d-flex justify-content-between"><span>แก้ไขนัด: ${p.firstName} ${p.lastName} (HN: ${p.hn})</span><span class="badge bg-white text-dark">${p.medicineName}</span></div><div class="card-body"><table class="table table-bordered table-sm"><thead class="table-light"><tr><th>รอบ</th><th>วันที่</th><th>ขวด</th><th>จัดการ</th></tr></thead><tbody id="editTableBody">`;
         (p.schedule||[]).forEach((s, idx) => {
-            html += `
-            <tr>
-                <td><input type="number" class="form-control form-control-sm" value="${s.round}" onchange="updateLocalSchedule(${idx}, 'round', this.value)"></td>
-                <td><input type="date" class="form-control form-control-sm" value="${s.date}" onchange="updateLocalSchedule(${idx}, 'date', this.value)"></td>
-                <td><input type="number" class="form-control form-control-sm" value="${s.bottles}" onchange="updateLocalSchedule(${idx}, 'bottles', this.value)"></td>
-                <td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="removeRound(${idx})"><i class="bi bi-trash"></i></button></td>
-            </tr>`;
+            html += `<tr><td><input type="number" class="form-control form-control-sm" value="${s.round}" onchange="updateLocalSchedule(${idx}, 'round', this.value)"></td><td><input type="date" class="form-control form-control-sm" value="${s.date}" onchange="updateLocalSchedule(${idx}, 'date', this.value)"></td><td><input type="number" class="form-control form-control-sm" value="${s.bottles}" onchange="updateLocalSchedule(${idx}, 'bottles', this.value)"></td><td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="removeRound(${idx})"><i class="bi bi-trash"></i></button></td></tr>`;
         });
-        html += `</tbody></table>
-            <div class="d-flex justify-content-between mt-3">
-                <button class="btn btn-secondary" onclick="addRound()"><i class="bi bi-plus-circle"></i> เพิ่มรอบนัด</button>
-                <button class="btn btn-success px-4" onclick="saveEditedSchedule()">บันทึกการแก้ไขทั้งหมด</button>
-            </div>
-        </div></div>`;
+        html += `</tbody></table><div class="d-flex justify-content-between mt-3"><button class="btn btn-secondary" onclick="addRound()"><i class="bi bi-plus-circle"></i> เพิ่มรอบนัด</button><button class="btn btn-success px-4" onclick="saveEditedSchedule()">บันทึกการแก้ไขทั้งหมด</button></div></div></div>`;
         qs('#editForm').innerHTML = html;
     }
-
-    // Helper functions for Edit (Client-side logic)
-    window.updateLocalSchedule = (idx, field, value) => {
-        foundPrescriptionForEdit.schedule[idx][field] = value;
-    };
-    window.removeRound = (idx) => {
-        if(!confirm('ต้องการลบรอบนี้?')) return;
-        foundPrescriptionForEdit.schedule.splice(idx, 1);
-        renderEditForm();
-    };
+    window.updateLocalSchedule = (idx, field, value) => { foundPrescriptionForEdit.schedule[idx][field] = value; };
+    window.removeRound = (idx) => { if(!confirm('ต้องการลบรอบนี้?')) return; foundPrescriptionForEdit.schedule.splice(idx, 1); renderEditForm(); };
     window.addRound = () => {
         const arr = foundPrescriptionForEdit.schedule;
         const last = arr[arr.length-1];
-        let newDate = getDateString(new Date());
-        let newRound = 1;
-        
-        if(last) {
-            const d = new Date(last.date); d.setDate(d.getDate()+7);
-            newDate = getDateString(d);
-            newRound = Number(last.round) + 1;
-        }
-        arr.push({ round: newRound, date: newDate, bottles: 1, expiry: newDate }); // Default expiry = date
+        let newDate = getDateString(new Date()); let newRound = 1;
+        if(last) { const d = new Date(last.date); d.setDate(d.getDate()+7); newDate = getDateString(d); newRound = Number(last.round) + 1; }
+        arr.push({ round: newRound, date: newDate, bottles: 1, expiry: newDate });
         renderEditForm();
     };
     window.saveEditedSchedule = async () => {
         const p = foundPrescriptionForEdit;
         showLoading(true);
-        // ส่งตารางใหม่ทั้งก้อนไปเซฟ
         const res = await apiPost('updateSchedule', { vn: p.vn, schedule: p.schedule });
         showLoading(false);
-        if(res.success){
-            toast('บันทึกข้อมูลสำเร็จ','green');
-            await loadPrescriptions(); // รีโหลดข้อมูลจริงกลับมา
-            renderCalendar();
-            qs('#editForm').innerHTML = ''; // Clear form
-        } else {
-            toast(res.message, 'red');
-        }
+        if(res.success){ toast('บันทึกข้อมูลสำเร็จ','green'); await loadPrescriptions(); renderCalendar(); qs('#editForm').innerHTML = ''; } else { toast(res.message, 'red'); }
     };
 
-    /* ====================== PRINTING (Fix: Clean & No Link) ====================== */
-    // Logic: สร้าง iframe และใส่ CSS @page { margin: 0 } เพื่อซ่อน link https
+    /* [Fix] Clean A4 Printing (Sarabun, No box, Professional) */
     function printPrescription(p){
        if(!p) return;
-       const html = `
-       <html><head><style>
-          @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
-          body{ font-family:'Sarabun', sans-serif; padding: 20px; color:#000; }
-          @page { size: A4; margin: 0; }
-          .container { width: 100%; max-width: 210mm; margin: 0 auto; padding-top: 20px; }
-          .header { text-align: center; margin-bottom: 20px; }
-          h1 { font-size: 22px; margin-bottom: 5px; font-weight: bold; }
-          h2 { font-size: 16px; font-weight: normal; margin: 0; }
-          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; font-size: 16px; }
-          .info-item { margin-bottom: 5px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th { border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 8px; text-align: left; }
-          td { border-bottom: 1px solid #eee; padding: 8px; vertical-align: middle; }
-          .sig-line { border-bottom: 1px dotted #000; width: 100px; display: inline-block; margin-top: 20px; }
-       </style></head><body>
-          <div class="container">
-             <div class="header">
-                <h1>ใบค้างรับยาผลิตเฉพาะราย (รับยาหลัง 14.00 น.)</h1>
-                <h2>งานจ่ายยาผู้ป่วยนอก โรงพยาบาลนพรัตนราชธานี</h2>
-             </div>
-             <div class="info-grid">
-                <div>
-                    <div class="info-item"><strong>VN:</strong> ${p.vn}</div>
-                    <div class="info-item"><strong>HN:</strong> ${p.hn}</div>
-                    <div class="info-item"><strong>ชื่อ-สกุล:</strong> ${p.firstName} ${p.lastName}</div>
-                </div>
-                <div>
-                    <div class="info-item"><strong>รายการยา:</strong> ${p.medicineName}</div>
-                    <div class="info-item"><strong>วันที่ออกใบนัด:</strong> ${thaiDate(getDateString(new Date()))}</div>
-                    <div class="info-item"><strong>เบอร์โทร:</strong> ${p.phone}</div>
-                </div>
-             </div>
-             <hr style="border:0; border-top:1px solid #000;">
-             <table>
-                <thead><tr><th>รายการยา</th><th align="center">จำนวน (ขวด)</th><th>วันนัดรับยา</th><th align="center">ผู้จ่ายยา</th></tr></thead>
-                <tbody>
-                   ${(p.schedule||[]).map(s=>`
-                   <tr>
-                      <td>${p.medicineName}</td>
-                      <td align="center" style="font-weight:bold; font-size:18px;">${s.bottles}</td>
-                      <td>${thaiDate(s.date)}</td>
-                      <td align="center">............................</td>
-                   </tr>`).join('')}
-                </tbody>
-             </table>
-             <div style="margin-top: 30px; font-size: 14px; text-align: center;">
-                * กรุณานำใบนัดนี้มายื่นเพื่อรับยาตามวันที่กำหนด *
-             </div>
-          </div>
-       </body></html>`;
+       const html = `<html><head><style>@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');body{font-family:'Sarabun',sans-serif;padding:20px;color:#000}@page{size:A4;margin:0}.container{width:100%;max-width:210mm;margin:0 auto;padding-top:20px}.header{text-align:center;margin-bottom:20px}h1{font-size:22px;margin-bottom:5px;font-weight:bold}h2{font-size:16px;font-weight:normal;margin:0}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px;font-size:16px}.info-item{margin-bottom:5px}table{width:100%;border-collapse:collapse;margin-top:10px}th{border-top:1px solid #000;border-bottom:1px solid #000;padding:8px;text-align:left}td{border-bottom:1px solid #eee;padding:8px;vertical-align:middle}</style></head><body><div class="container"><div class="header"><h1>ใบค้างรับยาผลิตเฉพาะราย (รับยาหลัง 14.00 น.)</h1><h2>งานจ่ายยาผู้ป่วยนอก โรงพยาบาลนพรัตนราชธานี</h2></div><div class="info-grid"><div><div class="info-item"><strong>VN:</strong> ${p.vn}</div><div class="info-item"><strong>HN:</strong> ${p.hn}</div><div class="info-item"><strong>ชื่อ-สกุล:</strong> ${p.firstName} ${p.lastName}</div></div><div><div class="info-item"><strong>รายการยา:</strong> ${p.medicineName}</div><div class="info-item"><strong>วันที่ออกใบนัด:</strong> ${thaiDate(getDateString(new Date()))}</div><div class="info-item"><strong>เบอร์โทร:</strong> ${p.phone}</div></div></div><hr style="border:0;border-top:1px solid #000;"><table><thead><tr><th>รายการยา</th><th align="center">จำนวน (ขวด)</th><th>วันนัดรับยา</th><th align="center">ผู้จ่ายยา</th></tr></thead><tbody>${(p.schedule||[]).map(s=>`<tr><td>${p.medicineName}</td><td align="center" style="font-weight:bold;font-size:18px;">${s.bottles}</td><td>${thaiDate(s.date)}</td><td align="center">............................</td></tr>`).join('')}</tbody></table><div style="margin-top:30px;font-size:14px;text-align:center;">* กรุณานำใบนัดนี้มายื่นเพื่อรับยาตามวันที่กำหนด *</div></div></body></html>`;
        const iframe = document.createElement('iframe'); iframe.style.display='none'; document.body.append(iframe); const doc = iframe.contentWindow.document; doc.write(html); doc.close(); setTimeout(()=>{ iframe.contentWindow.print(); iframe.remove(); }, 500);
     }
 
+    /* [Fix] Clean A5 Production Printing */
     function printProductionA5(){
        const dateStr = qs('#productionDate').value;
        const rows = qs('#productionTable tbody').innerHTML;
-       const html = `
-       <html><head><style>
-          @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
-          body{ font-family:'Sarabun', sans-serif; margin: 0; padding: 10px; }
-          @page { size: A5; margin: 0; }
-          .a5-container { width: 148mm; min-height: 200mm; padding: 10mm; box-sizing: border-box; }
-          h3 { text-align: center; margin-bottom: 5px; }
-          table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
-          th, td { border: 1px solid black; padding: 4px; }
-          .footer { margin-top: 20px; font-size: 12px; }
-       </style></head><body>
-          <div class="a5-container">
-             <h3>ใบเบิกยาเตรียมผลิตผู้ป่วยเฉพาะราย</h3>
-             <div><strong>เรียน</strong> หัวหน้างานผลิตยา</div>
-             <p>ขอเบิกยาเตรียมสำหรับผู้ป่วยเฉพาะราย (ประจำวันที่ ${thaiDate(dateStr)})</p>
-             <table><thead><tr><th>ลำดับ</th><th>รายการยาเตรียม</th><th>ขวด</th><th>เม็ดที่ใช้</th><th>หมายเหตุ</th></tr></thead><tbody>${rows}</tbody></table>
-             <div class="footer">
-                <p>เวลารับยา .............................................</p>
-                <p align="right" style="margin-top:30px;">ลงชื่อ ..................................................... เภสัชกร</p>
-             </div>
-          </div>
-       </body></html>`;
+       const html = `<html><head><style>@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');body{font-family:'Sarabun',sans-serif;margin:0;padding:10px}@page{size:A5;margin:0}.a5-container{width:148mm;min-height:200mm;padding:10mm;box-sizing:border-box}h3{text-align:center;margin-bottom:5px}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}th,td{border:1px solid black;padding:4px}.footer{margin-top:20px;font-size:12px}</style></head><body><div class="a5-container"><h3>ใบเบิกยาเตรียมผลิตผู้ป่วยเฉพาะราย</h3><div><strong>เรียน</strong> หัวหน้างานผลิตยา</div><p>ขอเบิกยาเตรียมสำหรับผู้ป่วยเฉพาะราย (ประจำวันที่ ${thaiDate(dateStr)})</p><table><thead><tr><th>ลำดับ</th><th>รายการยาเตรียม</th><th>ขวด</th><th>เม็ดที่ใช้</th><th>หมายเหตุ</th></tr></thead><tbody>${rows}</tbody></table><div class="footer"><p>เวลารับยา .............................................</p><p align="right" style="margin-top:30px;">ลงชื่อ ..................................................... เภสัชกร</p></div></div></body></html>`;
        const iframe = document.createElement('iframe'); iframe.style.display='none'; document.body.append(iframe); const doc = iframe.contentWindow.document; doc.write(html); doc.close(); setTimeout(()=>{ iframe.contentWindow.print(); iframe.remove(); }, 500);
     }
-
-    // ... (Keep other generic functions like saveMedicine, deleteMedicine, buildSchedule same as previous version) ...
-    // Note: I included all critical modified parts above. Ensure to keep the standard save/load logic from previous stable version.
     
-    // -- REST OF LOGIC (Standard) --
-    function buildSchedule(startStr, docDateStr, dose, med){
-       const start = parseDate(startStr); const end = parseDate(docDateStr);
-       const diffTime = Math.abs(end - start); const totalDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24))); 
-       let totalVolumeNeeded = totalDays * dose;
-       const schedule = []; let currentD = new Date(start); let round = 1;
-       const period = med.isRTM ? med.mixedShelfLife : med.shelfLife;
-       while(totalVolumeNeeded > 0.1){ 
-          let daysThisRound = period; let volThisRound = daysThisRound * dose;
-          if(totalVolumeNeeded < volThisRound) volThisRound = totalVolumeNeeded;
-          const bottles = Math.ceil(volThisRound / med.bottleVolume);
-          const expiry = new Date(currentD); expiry.setDate(expiry.getDate() + daysThisRound);
-          schedule.push({ round: round++, date: getDateString(currentD), bottles: bottles, expiry: getDateString(expiry) });
-          totalVolumeNeeded -= volThisRound; currentD = new Date(expiry);
-          if(round > 50) break;
-       }
-       return schedule;
-    }
-    async function saveMedicine(e){
-       e.preventDefault(); showLoading(true);
-       await apiPost('saveMedicine', {medicine:{ name: qs('#medicineName').value, bottleVolume: qs('#bottleVolume').value, shelfLife: qs('#shelfLife').value, tabletsPerBottle: qs('#tabletsPerBottle').value, isRTM: qs('#isRTM').checked, rtmShelfLife: qs('#rtmShelfLife').value, mixedShelfLife: qs('#mixedShelfLife').value }});
-       await loadMedicines(); qs('#medicineForm').reset(); showLoading(false);
-    }
+    // Other actions (search production, save medicine, delete medicine) kept same as logic is sound.
+    async function searchProduction(){ const dateStr = qs('#productionDate').value; showLoading(true); await loadPrescriptions(); const list = []; prescriptions.forEach(p => { (p.schedule||[]).forEach(s => { if(s.date === dateStr){ const med = medicines.find(m=> m.id === p.medicineId || m.name === p.medicineName); const tabs = med ? (med.tabletsPerBottle || 0) : 0; list.push({ vn: p.vn, name: `${p.firstName} ${p.lastName}`, medName: p.medicineName, bottles: s.bottles, totalTablets: s.bottles * tabs, note: '' }); } }); }); list.sort((a,b) => a.medName.localeCompare(b.medName) || a.vn.localeCompare(b.vn)); const tbody = qs('#productionTable tbody'); tbody.innerHTML = list.length===0 ? '<tr><td colspan="5" class="text-center text-muted">ไม่พบรายการ</td></tr>' : list.map((item, i) => `<tr><td>${i+1}</td><td>${item.medName} (VN:${item.vn} ${item.name})</td><td>${item.bottles}</td><td>${item.totalTablets}</td><td>${item.note}</td></tr>`).join(''); qs('#productionResult').classList.remove('d-none'); showLoading(false); }
+    async function saveMedicine(e){ e.preventDefault(); showLoading(true); await apiPost('saveMedicine', {medicine:{ name: qs('#medicineName').value, bottleVolume: qs('#bottleVolume').value, shelfLife: qs('#shelfLife').value, tabletsPerBottle: qs('#tabletsPerBottle').value, isRTM: qs('#isRTM').checked, rtmShelfLife: qs('#rtmShelfLife').value, mixedShelfLife: qs('#mixedShelfLife').value }}); await loadMedicines(); qs('#medicineForm').reset(); showLoading(false); }
     async function deleteMedicine(id){ if(!confirm('ยืนยันลบ?')) return; await apiPost('deleteMedicine', {id}); await loadMedicines(); }
-    async function savePrescription(e){
-       e.preventDefault(); const medId = qs('#medicineSelect').value; const med = medicines.find(x=>x.id===medId); if(!med) return alert('เลือกยา');
-       const p = { vn: qs('#vnDisplay').value, hn: qs('#hn').value, firstName: qs('#firstName').value, lastName: qs('#lastName').value, phone: qs('#phone').value, medicineId: med.id, medicineName: med.name, dailyDose: qs('#dailyDose').value, firstPickupDate: qs('#firstPickupDate').value, doctorAppointment: qs('#doctorAppointment').value };
-       p.schedule = buildSchedule(p.firstPickupDate, p.doctorAppointment, p.dailyDose, med);
-       showLoading(true); const res = await apiPost('savePrescription', {prescription: p}); showLoading(false);
-       if(res.success){ currentPrescription = {...p, medicine:med, createdDate: getDateString(new Date())}; renderResultCard(); await fetchNextVN(); await loadPrescriptions(); toast('บันทึกสำเร็จ','green'); } else { toast(res.message,'red'); }
-    }
     function renderResultCard(){ const p = currentPrescription; qs('#patientPrescriptionCard').classList.remove('d-none'); qs('#patientName').textContent = `${p.firstName} ${p.lastName}`; qs('#patientMeta').textContent = `VN: ${p.vn} | HN: ${p.hn}`; qs('#prescriptionTableBody').innerHTML = p.schedule.map(s=>`<tr><td>${s.round}</td><td>${thaiDate(s.date)}</td><td class="fw-bold text-primary">${s.bottles}</td><td>${thaiDate(s.expiry)}</td></tr>`).join(''); }
     async function searchForPrintTab(){ const k = qs('#searchPrintInput').value; const res = await apiGet('listPrescriptions', {q:k}); const p = (res.prescriptions||[])[0]; if(!p) { qs('#printPreview').innerHTML = '<div class="text-danger">ไม่พบข้อมูล</div>'; foundPrescriptionForPrint = null; return; } foundPrescriptionForPrint = p; qs('#printPreview').innerHTML = `<div class="border p-3 rounded d-flex justify-content-between align-items-center"><div><strong>${p.vn}</strong>: ${p.firstName} ${p.lastName}</div><button class="btn btn-info" onclick="printPrescription(foundPrescriptionForPrint)">พิมพ์</button></div>`; }
-    async function searchProduction(){ const dateStr = qs('#productionDate').value; showLoading(true); await loadPrescriptions(); const list = []; prescriptions.forEach(p => { (p.schedule||[]).forEach(s => { if(s.date === dateStr){ const med = medicines.find(m=> m.id === p.medicineId || m.name === p.medicineName); const tabs = med ? (med.tabletsPerBottle || 0) : 0; list.push({ vn: p.vn, name: `${p.firstName} ${p.lastName}`, medName: p.medicineName, bottles: s.bottles, totalTablets: s.bottles * tabs, note: '' }); } }); }); list.sort((a,b) => a.medName.localeCompare(b.medName) || a.vn.localeCompare(b.vn)); const tbody = qs('#productionTable tbody'); tbody.innerHTML = list.length===0 ? '<tr><td colspan="5" class="text-center text-muted">ไม่พบรายการ</td></tr>' : list.map((item, i) => `<tr><td>${i+1}</td><td>${item.medName} (VN:${item.vn} ${item.name})</td><td>${item.bottles}</td><td>${item.totalTablets}</td><td>${item.note}</td></tr>`).join(''); qs('#productionResult').classList.remove('d-none'); showLoading(false); }
   </script>
 </body>
 </html>
