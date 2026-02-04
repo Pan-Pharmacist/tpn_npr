@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ระบบเตรียมยาผลิตเฉพาะราย (Enterprise v3.0)</title>
+  <title>ระบบเตรียมยาผลิตเฉพาะราย (Enterprise v3.1)</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -43,7 +43,9 @@
       <form id="loginForm">
         <div class="mb-3"><label class="form-label">ชื่อผู้ใช้</label><input type="text" id="username" class="form-control" placeholder="username" required></div>
         <div class="mb-4"><label class="form-label">รหัสผ่าน</label><input type="password" id="password" class="form-control" placeholder="••••••" required></div>
-        <button type="submit" id="loginButton" class="btn btn-success w-100 py-2">เข้าสู่ระบบ</button>
+        <button type="submit" id="loginButton" class="btn btn-success w-100 py-2 transition-all">
+            <span id="btnText">เข้าสู่ระบบ</span>
+        </button>
       </form>
     </div>
   </div>
@@ -56,7 +58,7 @@
     <header class="header-section no-print">
       <div class="container-fluid px-4">
         <div class="d-flex justify-content-between align-items-center">
-          <div><h1 class="h5 fw-bold mb-0">โปรแกรมเตรียมยาผลิตเฉพาะราย v3.0</h1><small class="opacity-75" id="userDisplay">โรงพยาบาลนพรัตนราชธานี</small></div>
+          <div><h1 class="h5 fw-bold mb-0">โปรแกรมเตรียมยาผลิตเฉพาะราย v3.1</h1><small class="opacity-75" id="userDisplay">โรงพยาบาลนพรัตนราชธานี</small></div>
           <div><button id="logoutBtn" class="btn btn-outline-light btn-sm">ออกจากระบบ</button></div>
         </div>
       </div>
@@ -155,10 +157,8 @@
                   <div class="col-md-2"><label class="form-label">ขนาดบรรจุ (cc)</label><input type="number" id="bottleVolume" class="form-control" required></div>
                   <div class="col-md-2"><label class="form-label">อายุยา (วัน)</label><input type="number" id="shelfLife" class="form-control" required></div>
                   <div class="col-md-3"><label class="form-label">จำนวนเม็ดที่ใช้/ขวด</label><input type="number" id="tabletsPerBottle" class="form-control" placeholder="0" required></div>
-                  
                   <div class="col-md-4"><label class="form-label text-primary">ความแรง (Strength)</label><input type="text" id="strength" class="form-control" placeholder="เช่น 2mg/ml"></div>
                   <div class="col-md-4"><label class="form-label text-primary">ปริมาณ มก. (สำหรับสติ๊กเกอร์)</label><input type="text" id="amountMg" class="form-control" placeholder="เช่น 20 มิลลิกรัม"></div>
-                  
                   <div class="col-md-12 pt-2"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="isRTM"><label class="form-check-label fw-bold" for="isRTM">ยานี้เป็นประเภท RTM (Ready to Mix)</label></div></div>
                   <div class="col-md-3 rtm-only d-none"><label class="form-label text-danger">อายุผงยา (RTM Life)</label><input type="number" id="rtmShelfLife" class="form-control"></div>
                   <div class="col-md-3 rtm-only d-none"><label class="form-label text-danger">อายุหลังผสม (Mixed Life)</label><input type="number" id="mixedShelfLife" class="form-control"></div>
@@ -254,11 +254,11 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     // ⚠️ เปลี่ยน URL Script ของคุณที่นี่ (สำคัญมาก)
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz_oszqHSO9xy3nXb4YoMm3T8jFWmVJlto8GRUi4NS0h1klYeMSFm09B3IKYWBcwaa2fw/exec';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxD8oinnM9wwRWWUyMQCPhpSp2Pgz2Bu1aptOeDqIF9foKckOyGCuxohp5IayKtmWI6AQ/exec';
 
     let medicines = [];
     let prescriptions = [];
-    let drugProducts = []; // 🆕 เก็บข้อมูล Lot
+    let drugProducts = [];
     let currentPrescription = null;
     let foundPrescriptionForPrint = null;
     let foundPrescriptionForEdit = null;
@@ -278,42 +278,78 @@
     async function apiPost(act, data){ const payload = { action: act, user: currentUser ? currentUser.username : 'Unknown', ...data }; return fetch(SCRIPT_URL, {method:'POST', body:JSON.stringify(payload)}).then(r=>r.json()); }
 
     document.addEventListener('DOMContentLoaded', ()=>{
+       // 🆕 Logic Login แบบใหม่ (ไม่ค้าง)
        qs('#loginForm').addEventListener('submit', async(e)=>{
-          e.preventDefault(); const u = qs('#username').value; const p = qs('#password').value;
-          showLoading(true); const res = await apiPost('login', {u, p}); showLoading(false);
-          if(res.success){ currentUser = res.user; qs('#loginScreen').classList.add('d-none'); qs('#mainApp').classList.remove('d-none'); qs('#userDisplay').textContent = `ผู้ใช้งาน: ${currentUser.name} (${currentUser.role})`; await initApp(); } else { toast(res.message, 'red'); }
+          e.preventDefault();
+          const btn = qs('#loginButton');
+          const originalText = qs('#btnText').textContent;
+          const u = qs('#username').value; 
+          const p = qs('#password').value;
+          
+          // 1. เปลี่ยนสถานะปุ่ม (Feedback)
+          btn.disabled = true;
+          qs('#btnText').innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังเข้าสู่ระบบ...';
+          
+          try {
+              const res = await apiPost('login', {u, p});
+              if(res.success){
+                 currentUser = res.user;
+                 qs('#loginScreen').classList.add('d-none'); 
+                 qs('#mainApp').classList.remove('d-none'); 
+                 qs('#userDisplay').textContent = `ผู้ใช้งาน: ${currentUser.name} (${currentUser.role})`;
+                 
+                 // 2. โหลดข้อมูล (ใส่ Try-Catch กันค้าง)
+                 showLoading(true);
+                 await initApp();
+                 showLoading(false); // ต้องปิดเสมอ
+              } else {
+                 toast(res.message, 'red');
+                 btn.disabled = false;
+                 qs('#btnText').textContent = originalText;
+              }
+          } catch(err) {
+              console.error(err);
+              toast('เกิดข้อผิดพลาด: ' + err.message, 'red');
+              btn.disabled = false;
+              qs('#btnText').textContent = originalText;
+              showLoading(false);
+          }
        });
+
        qs('#logoutBtn').addEventListener('click', ()=>{ location.reload(); });
-       
-       const checkHN = async () => { const hnVal = qs('#hn').value.trim(); if(!hnVal) return; showLoading(true); const res = await apiGet('findPatient', {hn: hnVal}); showLoading(false);
-          if(res.found){ qs('#firstName').value = res.firstName; qs('#lastName').value = res.lastName; qs('#phone').value = res.phone; toast('พบประวัติเดิม: ดึงข้อมูลเรียบร้อย', 'green'); } else { toast('ไม่พบประวัติเดิม', 'blue'); } };
+       const checkHN = async () => { const hnVal = qs('#hn').value.trim(); if(!hnVal) return; showLoading(true); const res = await apiGet('findPatient', {hn: hnVal}); showLoading(false); if(res.found){ qs('#firstName').value = res.firstName; qs('#lastName').value = res.lastName; qs('#phone').value = res.phone; toast('พบประวัติเดิม: ดึงข้อมูลเรียบร้อย', 'green'); } else { toast('ไม่พบประวัติเดิม', 'blue'); } };
        qs('#hn').addEventListener('change', checkHN); qs('#btnCheckHN').addEventListener('click', checkHN);
        qs('a[href="#dashboardTab"]').addEventListener('shown.bs.tab', loadDashboard);
-       qs('a[href="#productTab"]').addEventListener('shown.bs.tab', renderProductTable); // 🆕
+       qs('a[href="#productTab"]').addEventListener('shown.bs.tab', renderProductTable);
     });
 
     async function initApp(){
-       showLoading(true);
-       await Promise.all([loadMedicines(), loadPrescriptions(), loadDrugProducts()]);
-       qs('#medicineForm').addEventListener('submit', saveMedicine);
-       qs('#prescriptionForm').addEventListener('submit', savePrescription);
-       qs('#printPrescriptionBtn').addEventListener('click', ()=> printPrescription(currentPrescription));
-       qs('#searchEditBtn').addEventListener('click', searchForEdit);
-       qs('#searchPrintBtn').addEventListener('click', searchForPrintTab);
-       qs('#btnSearchProduction').addEventListener('click', searchProduction);
-       qs('#btnPrintProduction').addEventListener('click', printProductionA5);
-       qs('#prevMonth').addEventListener('click', ()=>{ currentCalendarDate.setMonth(currentCalendarDate.getMonth()-1); renderCalendar(); });
-       qs('#nextMonth').addEventListener('click', ()=>{ currentCalendarDate.setMonth(currentCalendarDate.getMonth()+1); renderCalendar(); });
-       qs('#isRTM').addEventListener('change', (e)=>qsa('.rtm-only').forEach(x=>x.classList.toggle('d-none',!e.target.checked)));
-       
-       qs('#productionDate').value = getDateString(new Date());
-       qs('#firstPickupDate').value = getDateString(new Date());
-       qs('#doctorAppointment').value = getDateString(new Date());
-       renderCalendar();
-       showLoading(false);
+       try {
+           await Promise.all([loadMedicines(), loadPrescriptions(), loadDrugProducts()]);
+           qs('#productionDate').value = getDateString(new Date());
+           qs('#firstPickupDate').value = getDateString(new Date());
+           qs('#doctorAppointment').value = getDateString(new Date());
+           renderCalendar();
+       } catch (error) {
+           console.error("Init Error:", error);
+           toast("โหลดข้อมูลบางส่วนไม่สำเร็จ (อาจต้อง Deploy Script ใหม่)", 'red');
+       }
+       // Event Listeners (ใส่ครั้งเดียว)
+       if(!window.eventsBound) {
+           qs('#medicineForm').addEventListener('submit', saveMedicine);
+           qs('#prescriptionForm').addEventListener('submit', savePrescription);
+           qs('#printPrescriptionBtn').addEventListener('click', ()=> printPrescription(currentPrescription));
+           qs('#searchEditBtn').addEventListener('click', searchForEdit);
+           qs('#searchPrintBtn').addEventListener('click', searchForPrintTab);
+           qs('#btnSearchProduction').addEventListener('click', searchProduction);
+           qs('#btnPrintProduction').addEventListener('click', printProductionA5);
+           qs('#prevMonth').addEventListener('click', ()=>{ currentCalendarDate.setMonth(currentCalendarDate.getMonth()-1); renderCalendar(); });
+           qs('#nextMonth').addEventListener('click', ()=>{ currentCalendarDate.setMonth(currentCalendarDate.getMonth()+1); renderCalendar(); });
+           qs('#isRTM').addEventListener('change', (e)=>qsa('.rtm-only').forEach(x=>x.classList.toggle('d-none',!e.target.checked)));
+           window.eventsBound = true;
+       }
     }
     
-    // 🆕 Reset Form
     function resetPrescriptionForm() {
        qs('#prescriptionForm').reset();
        qs('#vnDisplay').value = '';
@@ -329,10 +365,13 @@
        qs('#medicineListBody').innerHTML = medicines.map(m => `<tr><td>${m.name}</td><td>${m.strength||'-'}</td><td>${m.bottleVolume}</td><td>${m.tabletsPerBottle}</td><td>${m.isRTM?'<span class="badge bg-warning text-dark">RTM</span>':'ทั่วไป'}</td><td><button class="btn btn-sm btn-outline-danger" onclick="deleteMedicine('${m.id}')"><i class="bi bi-trash"></i></button></td></tr>`).join('');
     }
     async function loadPrescriptions(){ const res = await apiGet('listPrescriptions'); prescriptions = res.prescriptions || []; }
-    // 🆕 Load Products
-    async function loadDrugProducts(){ const res = await apiGet('getDrugProducts'); drugProducts = res || []; }
+    async function loadDrugProducts(){ 
+        try {
+            const res = await apiGet('getDrugProducts'); 
+            drugProducts = Array.isArray(res) ? res : []; 
+        } catch(e) { drugProducts = []; }
+    }
 
-    // 🆕 Render Product Table
     function renderProductTable() {
        const tbody = qs('#productTableBody');
        tbody.innerHTML = medicines.map(m => {
@@ -345,23 +384,20 @@
        }).join('');
     }
     
-    // 🆕 Save Product
     async function saveDrugProducts() {
        const products = [];
        qsa('#productTableBody tr').forEach(tr => {
-          const name = tr.querySelector('.dp-lot').dataset.name;
-          const lot = tr.querySelector('.dp-lot').value;
-          const exp = tr.querySelector('.dp-exp').value;
-          products.push({ medicineName: name, tabletLot: lot, tabletExpiry: exp });
+          const inputs = tr.querySelectorAll('input');
+          if(inputs.length > 0) {
+             const name = inputs[0].dataset.name;
+             const lot = inputs[0].value;
+             const exp = inputs[1].value;
+             products.push({ medicineName: name, tabletLot: lot, tabletExpiry: exp });
+          }
        });
-       showLoading(true);
-       await apiPost('saveDrugProducts', {products});
-       await loadDrugProducts();
-       showLoading(false);
-       toast('บันทึกข้อมูลสำเร็จ', 'green');
+       showLoading(true); await apiPost('saveDrugProducts', {products}); await loadDrugProducts(); showLoading(false); toast('บันทึกข้อมูลสำเร็จ', 'green');
     }
 
-    // Schedule Build logic (same)
     function buildSchedule(startStr, docDateStr, dose, med) {
        const start = parseDate(startStr); const end = parseDate(docDateStr);
        const diffTime = Math.abs(end - start); const totalDaysNeeded = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24))); 
@@ -397,7 +433,6 @@
     }
     function renderResultCard(){ const p = currentPrescription; qs('#patientPrescriptionCard').classList.remove('d-none'); qs('#patientName').textContent = `${p.firstName} ${p.lastName}`; qs('#patientMeta').innerHTML = `<span class="badge bg-light text-dark border">VN: ${p.vn}</span> <span class="badge bg-light text-dark border">HN: ${p.hn}</span>`; qs('#prescriptionTableBody').innerHTML = p.schedule.map(s=>`<tr><td>${s.round}</td><td>${thaiDate(s.date)}</td><td class="text-center fw-bold text-primary">${s.bottles}</td><td>${thaiDate(s.expiry)}</td></tr>`).join(''); qs('#patientPrescriptionCard').scrollIntoView({behavior: 'smooth'}); }
 
-    // 🆕 Search Edit (Exact Match)
     async function searchForEdit(){
         const k = qs('#searchEditInput').value.trim();
         if(!k) return toast('กรุณากรอกข้อมูลค้นหา','red');
@@ -406,22 +441,9 @@
         const list = res.prescriptions || [];
         if(list.length === 0) return toast('ไม่พบข้อมูล','red');
         if(list.length === 1) { foundPrescriptionForEdit = JSON.parse(JSON.stringify(list[0])); renderEditForm(); }
-        else {
-           // เจอหลายใบ ให้เลือก
-           foundEditList = list;
-           qs('#selectEditList').innerHTML = list.map((item, idx) => 
-              `<button class="list-group-item list-group-item-action" onclick="selectEditItem(${idx})">
-                 <strong>VN: ${item.vn}</strong> - ${item.medicineName} <br><small>${thaiDate(item.firstPickupDate)}</small>
-               </button>`
-           ).join('');
-           new bootstrap.Modal(qs('#selectEditModal')).show();
-        }
+        else { foundEditList = list; qs('#selectEditList').innerHTML = list.map((item, idx) => `<button class="list-group-item list-group-item-action" onclick="selectEditItem(${idx})"><strong>VN: ${item.vn}</strong> - ${item.medicineName} <br><small>${thaiDate(item.firstPickupDate)}</small></button>`).join(''); new bootstrap.Modal(qs('#selectEditModal')).show(); }
     }
-    window.selectEditItem = (idx) => {
-       foundPrescriptionForEdit = JSON.parse(JSON.stringify(foundEditList[idx]));
-       bootstrap.Modal.getInstance(qs('#selectEditModal')).hide();
-       renderEditForm();
-    };
+    window.selectEditItem = (idx) => { foundPrescriptionForEdit = JSON.parse(JSON.stringify(foundEditList[idx])); bootstrap.Modal.getInstance(qs('#selectEditModal')).hide(); renderEditForm(); };
 
     function renderEditForm(){
         const p = foundPrescriptionForEdit;
@@ -435,17 +457,14 @@
     window.addRound = () => { const arr = foundPrescriptionForEdit.schedule; const last = arr[arr.length-1]; let newDate = getDateString(new Date()); let newRound = 1; if(last) { const d = new Date(last.date); d.setDate(d.getDate()+7); newDate = getDateString(d); newRound = Number(last.round) + 1; } arr.push({ round: newRound, date: newDate, bottles: 1, expiry: newDate }); renderEditForm(); };
     window.saveEditedSchedule = async () => { showLoading(true); const res = await apiPost('updateSchedule', { vn: foundPrescriptionForEdit.vn, schedule: foundPrescriptionForEdit.schedule }); showLoading(false); if(res.success){ toast('บันทึกสำเร็จ','green'); await loadPrescriptions(); renderCalendar(); qs('#editForm').innerHTML = ''; } else { toast(res.message, 'red'); } };
 
-    // 🆕 Print Sticker Logic
     function printSticker(){
        const dateStr = qs('#productionDate').value;
-       // หา Prescriptions ในวันนี้
        const list = [];
        prescriptions.forEach(p => { 
           (p.schedule||[]).forEach(s => { 
              if(s.date === dateStr){ 
                  const med = medicines.find(m=> m.id === p.medicineId || m.name === p.medicineName);
-                 // หา Lot จาก drugProducts
-                 const prod = drugProducts.find(d => d.medicineName === med.name) || {};
+                 const prod = drugProducts.find(d => d.medicineName === (med?med.name:p.medicineName)) || {};
                  list.push({ 
                     name: med ? med.name : p.medicineName,
                     amountMg: med ? (med.amountMg || '-') : '-',
@@ -458,53 +477,23 @@
        });
        
        if(list.length === 0) return toast('ไม่พบรายการยาที่ต้องพิมพ์', 'info');
-
-       // สร้าง HTML สำหรับ Sticker 6x8cm
-       const html = `<html><head><style>
-          @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap');
-          body{font-family:'Sarabun',sans-serif;margin:0;padding:0}
-          @page { size: 60mm 80mm; margin: 0; }
-          .sticker { width: 56mm; height: 76mm; page-break-after: always; padding: 2mm; border: 1px dotted #ccc; box-sizing: border-box; display: flex; flex-direction: column; justify-content: start; }
-          .title { font-weight: bold; font-size: 16px; text-align: center; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 10px; }
-          .row { margin-bottom: 5px; font-size: 14px; }
-          .label { font-weight: 600; display: inline-block; width: 60px; }
-          .val { display: inline-block; }
-          .big-num { font-size: 24px; font-weight: bold; text-align: center; margin-top: 10px; border: 2px solid #000; padding: 5px; border-radius: 8px; }
-          .footer { font-size: 10px; text-align: center; margin-top: auto; }
-       </style></head><body>
-          ${list.map(item => `
-          <div class="sticker">
-             <div class="title">ใบเบิกยา (Sticker)</div>
-             <div class="row"><strong>${item.name}</strong></div>
-             <div class="row"><span class="label">ขนาด:</span> <span class="val">${item.amountMg}</span></div>
-             <div class="row"><span class="label">Lot:</span> <span class="val">${item.lot}</span></div>
-             <div class="row"><span class="label">Exp:</span> <span class="val">${item.exp}</span></div>
-             <div class="big-num">จำนวน ${item.totalTablets} เม็ด</div>
-             <div class="footer">วันที่ ${thaiDate(dateStr)}</div>
-          </div>`).join('')}
-       </body></html>`;
-       
+       const html = `<html><head><style>@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap');body{font-family:'Sarabun',sans-serif;margin:0;padding:0}@page { size: 60mm 80mm; margin: 0; } .sticker { width: 56mm; height: 76mm; page-break-after: always; padding: 2mm; border: 1px dotted #ccc; box-sizing: border-box; display: flex; flex-direction: column; justify-content: start; } .title { font-weight: bold; font-size: 16px; text-align: center; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 10px; } .row { margin-bottom: 5px; font-size: 14px; } .label { font-weight: 600; display: inline-block; width: 60px; } .val { display: inline-block; } .big-num { font-size: 24px; font-weight: bold; text-align: center; margin-top: 10px; border: 2px solid #000; padding: 5px; border-radius: 8px; } .footer { font-size: 10px; text-align: center; margin-top: auto; }</style></head><body>${list.map(item => `<div class="sticker"><div class="title">ใบเบิกยา (Sticker)</div><div class="row"><strong>${item.name}</strong></div><div class="row"><span class="label">ขนาด:</span> <span class="val">${item.amountMg}</span></div><div class="row"><span class="label">Lot:</span> <span class="val">${item.lot}</span></div><div class="row"><span class="label">Exp:</span> <span class="val">${item.exp}</span></div><div class="big-num">จำนวน ${item.totalTablets} เม็ด</div><div class="footer">วันที่ ${thaiDate(dateStr)}</div></div>`).join('')}</body></html>`;
        const iframe = document.createElement('iframe'); iframe.style.display='none'; document.body.append(iframe); const doc = iframe.contentWindow.document; doc.write(html); doc.close(); setTimeout(()=>{ iframe.contentWindow.print(); iframe.remove(); }, 500);
     }
 
-    // Print Prescription
     function printPrescription(p){
        if(!p) return;
-       // 🆕 หา Strength ยา
        const med = medicines.find(m => m.id === p.medicineId || m.name === p.medicineName);
        const strText = med ? (med.strength ? ` (${med.strength})` : '') : '';
-
        const html = `<html><head><style>@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');body{font-family:'Sarabun',sans-serif;padding:30px;color:#000}@page{size:A4;margin:0}.container{width:100%;max-width:210mm;margin:0 auto;padding-top:20px}.header{text-align:center;margin-bottom:30px}h1{font-size:24px;margin-bottom:8px;font-weight:bold}h2{font-size:18px;font-weight:normal;margin:0;color:#333}.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;font-size:16px}.info-item{margin-bottom:8px}table{width:100%;border-collapse:collapse;margin-top:15px}th{border-top:1.5px solid #000;border-bottom:1.5px solid #000;padding:10px;text-align:left;font-weight:bold}td{border-bottom:1px solid #ccc;padding:10px;vertical-align:middle}.note{margin-top:40px;font-size:14px;text-align:center;border-top:1px dashed #999;padding-top:10px}</style></head><body><div class="container"><div class="header"><h1>ใบค้างรับยาผลิตเฉพาะราย (รับยาหลัง 14.00 น.)</h1><h2>งานจ่ายยาผู้ป่วยนอก โรงพยาบาลนพรัตนราชธานี</h2></div><div class="info-grid"><div><div class="info-item"><strong>VN:</strong> ${p.vn}</div><div class="info-item"><strong>HN:</strong> ${p.hn}</div><div class="info-item"><strong>ชื่อ-สกุล:</strong> ${p.firstName} ${p.lastName}</div></div><div><div class="info-item"><strong>รายการยา:</strong> ${p.medicineName}${strText}</div><div class="info-item"><strong>วันที่ออกใบนัด:</strong> ${thaiDate(getDateString(new Date()))}</div><div class="info-item"><strong>เบอร์โทร:</strong> ${p.phone}</div></div></div><table style="width:100%"><thead><tr><th>รายการยา</th><th align="center">จำนวน (ขวด)</th><th>วันนัดรับยา</th><th align="center">ผู้จ่ายยา</th></tr></thead><tbody>${(p.schedule||[]).map(s=>`<tr><td>${p.medicineName}${strText}</td><td align="center" style="font-weight:bold;font-size:20px;">${s.bottles}</td><td>${thaiDate(s.date)}</td><td align="center">............................</td></tr>`).join('')}</tbody></table><div class="note">* กรุณานำใบนัดนี้มายื่นเพื่อรับยาตามวันที่กำหนด *</div></div></body></html>`;
        const iframe = document.createElement('iframe'); iframe.style.display='none'; document.body.append(iframe); const doc = iframe.contentWindow.document; doc.write(html); doc.close(); setTimeout(()=>{ iframe.contentWindow.print(); iframe.remove(); }, 500);
     }
     
-    // Other actions (Keep original logic)
     function printProductionA5(){ const dateStr = qs('#productionDate').value; const rows = qs('#productionTable tbody').innerHTML; const html = `<html><head><style>@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');body{font-family:'Sarabun',sans-serif;margin:0;padding:15px}@page{size:A5;margin:0}.a5-container{width:148mm;min-height:200mm;padding:5mm;box-sizing:border-box}h3{text-align:center;margin-bottom:10px;font-weight:bold}table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}th,td{border:1px solid #000;padding:5px}.footer{margin-top:30px;font-size:13px}</style></head><body><div class="a5-container"><h3>ใบเบิกยาเตรียมผลิตผู้ป่วยเฉพาะราย</h3><div><strong>เรียน</strong> หัวหน้างานผลิตยา</div><p>ขอเบิกยาเตรียมสำหรับผู้ป่วยเฉพาะราย (ประจำวันที่ ${thaiDate(dateStr)})</p><table><thead><tr><th>ลำดับ</th><th>รายการยาเตรียม</th><th align="center">ขวด</th><th align="center">เม็ดที่ใช้</th><th>หมายเหตุ</th></tr></thead><tbody>${rows}</tbody></table><div class="footer"><p>เวลารับยา .............................................</p><p align="right" style="margin-top:40px;">ลงชื่อ ..................................................... เภสัชกร</p></div></div></body></html>`; const iframe = document.createElement('iframe'); iframe.style.display='none'; document.body.append(iframe); const doc = iframe.contentWindow.document; doc.write(html); doc.close(); setTimeout(()=>{ iframe.contentWindow.print(); iframe.remove(); }, 500); }
     async function searchProduction(){ const dateStr = qs('#productionDate').value; showLoading(true); await loadPrescriptions(); const list = []; prescriptions.forEach(p => { (p.schedule||[]).forEach(s => { if(s.date === dateStr){ const med = medicines.find(m=> m.id === p.medicineId || m.name === p.medicineName); const tabs = med ? (med.tabletsPerBottle || 0) : 0; list.push({ vn: p.vn, name: `${p.firstName} ${p.lastName}`, medName: p.medicineName, bottles: s.bottles, totalTablets: s.bottles * tabs, note: '' }); } }); }); list.sort((a,b) => a.medName.localeCompare(b.medName) || a.vn.localeCompare(b.vn)); const tbody = qs('#productionTable tbody'); tbody.innerHTML = list.length===0 ? '<tr><td colspan="5" class="text-center text-muted">ไม่พบรายการผลิตสำหรับวันนี้</td></tr>' : list.map((item, i) => `<tr><td>${i+1}</td><td>${item.medName}<br><small class="text-muted">(${item.vn} ${item.name})</small></td><td class="text-center fw-bold">${item.bottles}</td><td class="text-center">${item.totalTablets}</td><td>${item.note}</td></tr>`).join(''); qs('#productionResult').classList.remove('d-none'); showLoading(false); }
     async function saveMedicine(e){ e.preventDefault(); showLoading(true); await apiPost('saveMedicine', {medicine:{ name: qs('#medicineName').value, bottleVolume: qs('#bottleVolume').value, shelfLife: qs('#shelfLife').value, tabletsPerBottle: qs('#tabletsPerBottle').value, isRTM: qs('#isRTM').checked, rtmShelfLife: qs('#rtmShelfLife').value, mixedShelfLife: qs('#mixedShelfLife').value, strength: qs('#strength').value, amountMg: qs('#amountMg').value }}); await loadMedicines(); qs('#medicineForm').reset(); showLoading(false); }
     async function deleteMedicine(id){ Swal.fire({title:'ยืนยันลบ?',showCancelButton:true}).then(async(r)=>{ if(r.isConfirmed){ await apiPost('deleteMedicine', {id}); await loadMedicines(); } }); }
     async function searchForPrintTab(){ const k = qs('#searchPrintInput').value.trim(); const res = await apiGet('listPrescriptions', {q:k}); const list = res.prescriptions || []; if(list.length === 0) { qs('#printPreview').innerHTML = '<div class="alert alert-danger">ไม่พบข้อมูล</div>'; return; } const p = list[0]; foundPrescriptionForPrint = p; qs('#printPreview').innerHTML = `<div class="card shadow-sm"><div class="card-body d-flex justify-content-between align-items-center"><div><h6 class="mb-0 fw-bold">${p.vn} - ${p.firstName} ${p.lastName}</h6><small class="text-muted">${p.medicineName}</small></div><button class="btn btn-info text-white" onclick="printPrescription(foundPrescriptionForPrint)"><i class="bi bi-printer me-2"></i>พิมพ์</button></div></div>`; }
-    // Dashboard Logic
     async function loadDashboard() { showLoading(true); const res = await apiGet('getDashboardStats'); showLoading(false); qs('#dashTotalOrders').innerText = res.totalOrders; qs('#dashUniqueHN').innerText = res.uniqueHN; if(window.chart1) window.chart1.destroy(); if(window.chart2) window.chart2.destroy(); window.chart1 = new Chart(qs('#monthlyChart'), { type: 'line', data: { labels: ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'], datasets: [{ label: 'ยอดผลิต (ครั้ง)', data: res.monthly, borderColor: '#3498db', tension: 0.3, fill:true, backgroundColor:'rgba(52,152,219,0.1)' }] } }); window.chart2 = new Chart(qs('#topMedChart'), { type: 'bar', data: { labels: res.topMeds.map(x=>x.name), datasets: [{ label: 'จำนวน (ครั้ง)', data: res.topMeds.map(x=>x.count), backgroundColor: ['#e74c3c','#f1c40f','#2ecc71','#9b59b6','#34495e'] }] }, options: { indexAxis: 'y' } }); }
   </script>
 </body>
